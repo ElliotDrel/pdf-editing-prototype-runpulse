@@ -8,6 +8,7 @@ interface Props {
   activeFieldId: string | null;
   onSelectField: (id: string) => void;
   onUpdateField: (id: string, patch: Partial<Field>) => void;
+  className?: string;
 }
 
 function badgeColor(tier: Field['tier']): string {
@@ -16,9 +17,9 @@ function badgeColor(tier: Field['tier']): string {
   return 'text-danger border-danger/40';
 }
 
-export function ReviewPane({ fields, activeFieldId, onSelectField, onUpdateField }: Props) {
+export function ReviewPane({ fields, activeFieldId, onSelectField, onUpdateField, className }: Props) {
   return (
-    <div className="bg-bg-elev-2 rounded-md p-4 max-h-[460px] overflow-y-auto">
+    <div className={className ?? 'bg-bg-elev-2 rounded-md p-4 max-h-[460px] overflow-y-auto'}>
       <ul className="space-y-3">
         {fields.map((f) => (
           <li

@@ -5,11 +5,15 @@ import { Footer } from '@/components/Footer';
 
 export default function Page() {
   return (
-    <main className="max-w-[720px] mx-auto px-6 py-14">
-      <Header />
+    <main>
+      <div className="max-w-[720px] mx-auto px-6 pt-14 pb-4">
+        <Header />
+      </div>
       <Demo />
-      <Memo />
-      <Footer />
+      <div className="max-w-[720px] mx-auto px-6 pt-12 pb-20">
+        <Memo />
+        <Footer />
+      </div>
     </main>
   );
 }

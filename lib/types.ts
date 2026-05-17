@@ -1,5 +1,7 @@
 // lib/types.ts
 export type ConfidenceTier = 'high' | 'mid' | 'low';
+export type PdfKey = 'prior-auth' | 'referral';
+export type ExtractSource = 'pulse' | 'fallback';
 
 export interface Field {
   id: string;
@@ -32,4 +34,13 @@ export function tierFromConfidence(c: number): ConfidenceTier {
   if (c >= 0.90) return 'high';
   if (c >= 0.75) return 'mid';
   return 'low';
+}
+
+export type RenderBlockType = 'Text' | 'Title' | 'Header' | 'Footer';
+
+export interface RenderBlock {
+  content: string;
+  bbox: number[]; // [x1,y1,x2,y2,x3,y3,x4,y4] normalized 0-1, top-left origin
+  page: number;
+  blockType: RenderBlockType;
 }

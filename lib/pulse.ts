@@ -1,5 +1,41 @@
 const BASE_URL = process.env.PULSE_BASE_URL ?? 'https://api.runpulse.com';
 
+export interface PulseTextBlock {
+  content: string;
+  bounding_box: number[]; // [x1,y1,x2,y2,x3,y3,x4,y4] normalized 0-1, top-left origin
+  average_word_confidence: number;
+  page_number: number;
+}
+
+export interface PulseExtractResponse {
+  markdown?: string;
+  extraction_id?: string;
+  Text?: PulseTextBlock[];
+  Title?: PulseTextBlock[];
+  Header?: PulseTextBlock[];
+  Footer?: PulseTextBlock[];
+  [k: string]: unknown;
+}
+
+export async function extractFields(pdf: Uint8Array): Promise<PulseExtractResponse> {
+  const apiKey = process.env.PULSE_API_KEY;
+  if (!apiKey) throw new Error('PULSE_API_KEY not set');
+
+  const fd = new FormData();
+  fd.append('file', new Blob([pdf as BlobPart], { type: 'application/pdf' }), 'document.pdf');
+
+  const res = await fetch(`${BASE_URL}/extract`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey },
+    body: fd,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`pulse /extract failed: ${res.status} ${detail}`);
+  }
+  return res.json() as Promise<PulseExtractResponse>;
+}
+
 export interface FillCell {
   text?: string;
   bounding_box?: number[];

@@ -6,7 +6,6 @@ import { SAMPLE_FIELDS } from '@/lib/sample-data';
 import { REFERRAL_FIELDS } from '@/lib/referral-data';
 import type { Field, PdfKey, ExtractSource } from '@/lib/types';
 import { PdfEditPane } from './PdfEditPane';
-import { ReviewPane } from './ReviewPane';
 import { ApproveBar } from './ApproveBar';
 
 export type ApproveState =
@@ -53,6 +52,7 @@ export function Demo() {
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [approve, setApprove] = useState<ApproveState>({ kind: 'idle' });
   const reviewRef = useRef<HTMLDivElement>(null);
+  const clearedPdfRef = useRef<Promise<Blob | null> | null>(null);
 
   function updateField(id: string, patch: Partial<Field>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch, reviewed: true } : f)));
@@ -64,6 +64,7 @@ export function Demo() {
     setFields([]);
     setApprove({ kind: 'idle' });
     setActiveFieldId(null);
+    clearedPdfRef.current = null;
 
     try {
       const res = await fetch('/api/extract', {
@@ -83,22 +84,39 @@ export function Demo() {
 
     setPhase('reviewing');
     setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+
+    // Pre-clear the PDF in the background while the user edits fields
+    clearedPdfRef.current = fetch('/api/form-clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdfKey: key }),
+    }).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
   }
 
   async function onApprove() {
     setApprove({ kind: 'loading' });
 
-    const payload = JSON.stringify({
-      pdfKey,
-      fields: fields.map((f) => ({ id: f.id, label: f.label, value: f.value, type: f.type })),
-    });
+    const fieldSlims = fields.map((f) => ({ id: f.id, label: f.label, value: f.value, type: f.type }));
 
     try {
-      const res = await fetch('/api/form-fill/pulse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
+      // Await the pre-cleared PDF (usually already resolved by the time user hits Approve)
+      const clearedBlob = clearedPdfRef.current ? await clearedPdfRef.current : null;
+
+      let res: Response;
+      if (clearedBlob) {
+        const fd = new FormData();
+        fd.append('file', clearedBlob, 'cleared.pdf');
+        fd.append('fields', JSON.stringify(fieldSlims));
+        res = await fetch('/api/form-fill/pulse', { method: 'POST', body: fd });
+      } else {
+        // Fallback: fill route will clear itself
+        res = await fetch('/api/form-fill/pulse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfKey, fields: fieldSlims }),
+        });
+      }
+
       if (!res.ok) throw new Error(`pulse ${res.status}`);
       const pulseUrl = URL.createObjectURL(await res.blob());
       setApprove({ kind: 'done', pulseUrl });
@@ -108,7 +126,6 @@ export function Demo() {
   }
 
   const meta = PDF_META[pdfKey];
-  const flaggedCount = fields.filter((f) => f.needsReview && !f.reviewed).length;
 
   return (
     <section className="w-full mt-8">
@@ -189,47 +206,21 @@ export function Demo() {
                 <span className="font-mono text-xs text-fg-muted">Extracting fields&hellip;</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 items-start">
-                {/* Left: editable form */}
-                <div className="rounded-xl overflow-hidden border border-border">
-                  <div className="px-4 py-2.5 bg-bg-elev border-b border-border flex items-center justify-between flex-shrink-0">
-                    <div className="font-mono text-xs text-fg-muted">{meta.filename}</div>
-                    <div className="font-mono text-[10px] text-fg-dim">edited copy</div>
-                  </div>
-                  <div className="p-5 bg-bg-elev-2">
-                    <PdfEditPane
-                      fields={fields}
-                      activeFieldId={activeFieldId}
-                      pdfKey={pdfKey}
-                      onSelectField={setActiveFieldId}
-                      onUpdateField={updateField}
-                    />
-                  </div>
+              <div className="rounded-xl overflow-hidden border border-border">
+                <div className="px-4 py-2.5 bg-bg-elev border-b border-border flex items-center flex-shrink-0">
+                  <div className="font-mono text-xs text-fg-muted">{meta.filename}</div>
                 </div>
-
-                {/* Right: review panel + approve */}
-                <div className="flex flex-col gap-4 md:sticky md:top-6">
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    <div className="px-4 py-2.5 bg-bg-elev border-b border-border">
-                      <div className="font-mono text-xs text-fg">Review fields</div>
-                      <div className="font-mono text-[10px] text-fg-dim mt-0.5">
-                        {flaggedCount > 0
-                          ? `${flaggedCount} field${flaggedCount !== 1 ? 's' : ''} flagged`
-                          : 'All reviewed'}
-                      </div>
-                    </div>
-                    <ReviewPane
-                      fields={fields}
-                      activeFieldId={activeFieldId}
-                      onSelectField={setActiveFieldId}
-                      onUpdateField={updateField}
-                      className="bg-bg-elev-2 p-4 max-h-[480px] overflow-y-auto"
-                    />
-                  </div>
-
-                  <div className="rounded-xl border border-border overflow-hidden bg-bg-elev">
-                    <ApproveBar fields={fields} state={approve} onApprove={onApprove} />
-                  </div>
+                <div className="p-5 bg-bg-elev-2">
+                  <PdfEditPane
+                    fields={fields}
+                    activeFieldId={activeFieldId}
+                    pdfKey={pdfKey}
+                    onSelectField={setActiveFieldId}
+                    onUpdateField={updateField}
+                  />
+                </div>
+                <div className="border-t border-border bg-bg-elev">
+                  <ApproveBar state={approve} onApprove={onApprove} />
                 </div>
               </div>
             )}

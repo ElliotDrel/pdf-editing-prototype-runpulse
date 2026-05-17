@@ -23,13 +23,6 @@ interface EditorProps {
 function FieldEditor({ field, active, onSelect, onUpdate }: EditorProps) {
   if (!field) return null;
 
-  const borderColor =
-    field.tier === 'low'
-      ? 'border-danger/60'
-      : field.tier === 'mid'
-      ? 'border-warn/60'
-      : 'border-paper-line';
-
   return (
     <div
       className={`cursor-text rounded px-1.5 -mx-1.5 py-0.5 transition-colors duration-100 ${
@@ -41,7 +34,7 @@ function FieldEditor({ field, active, onSelect, onUpdate }: EditorProps) {
         {field.label}
       </div>
 
-      <div className={`flex items-center gap-1.5 border-b pb-1 ${borderColor}`}>
+      <div className="flex items-center gap-1.5 border-b border-paper-line pb-1">
         {field.type === 'checkbox' && (
           <span className="text-paper-ink text-[10px] select-none flex-shrink-0">
             {field.value && field.value.toLowerCase() !== 'false' && field.value.toLowerCase() !== 'unchecked'
@@ -57,26 +50,7 @@ function FieldEditor({ field, active, onSelect, onUpdate }: EditorProps) {
           className="flex-1 min-w-0 bg-transparent font-body text-[11px] text-paper-ink outline-none"
           placeholder="—"
         />
-        {field.tier !== 'high' && (
-          <span
-            className={`font-mono text-[8px] flex-shrink-0 ${
-              field.tier === 'low' ? 'text-danger/70' : 'text-warn/70'
-            }`}
-          >
-            {Math.round(field.confidence * 100)}%
-          </span>
-        )}
       </div>
-
-      {field.flag && (
-        <div
-          className={`font-body text-[8.5px] italic leading-snug transition-all duration-150 overflow-hidden ${
-            active ? 'max-h-16 opacity-100 mt-1' : 'max-h-0 opacity-0'
-          } ${field.tier === 'low' ? 'text-danger/75' : 'text-warn/75'}`}
-        >
-          {field.flag}
-        </div>
-      )}
     </div>
   );
 }

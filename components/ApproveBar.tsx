@@ -2,16 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Field } from '@/lib/types';
 import type { ApproveState } from './Demo';
 
 interface Props {
-  fields: Field[];
   state: ApproveState;
   onApprove: () => void;
 }
 
-export function ApproveBar({ fields, state, onApprove }: Props) {
+export function ApproveBar({ state, onApprove }: Props) {
   const [barW, setBarW] = useState(0);
   const [barTransition, setBarTransition] = useState('none');
 
@@ -28,8 +26,6 @@ export function ApproveBar({ fields, state, onApprove }: Props) {
     }
   }, [state.kind]);
 
-  const unreviewed = fields.filter((f) => f.needsReview && !f.reviewed).length;
-  const ready = unreviewed === 0;
   const showBar = state.kind === 'loading' || state.kind === 'done';
 
   if (state.kind === 'done') {
@@ -63,13 +59,9 @@ export function ApproveBar({ fields, state, onApprove }: Props) {
     );
   }
 
-  const status = ready
-    ? 'All fields reviewed · ready to fill'
-    : `${unreviewed} field${unreviewed === 1 ? '' : 's'} need${unreviewed === 1 ? 's' : ''} review`;
-
   let buttonLabel = 'Approve & fill PDF →';
   let buttonClass = 'bg-accent text-bg hover:bg-accent/90';
-  let disabled = !ready || state.kind === 'loading';
+  let disabled = state.kind === 'loading';
 
   if (state.kind === 'loading') {
     buttonLabel = 'Calling Pulse…';
@@ -91,13 +83,7 @@ export function ApproveBar({ fields, state, onApprove }: Props) {
           style={{ width: `${barW}%`, transition: barTransition }}
         />
       </div>
-      <div className="flex items-center justify-between gap-4 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <span
-            className={`inline-block w-2 h-2 rounded-full ${ready ? 'bg-accent' : 'bg-warn'} animate-[pulseDot_1.4s_ease-in-out_infinite]`}
-          />
-          <span className="text-sm text-fg-muted">{status}</span>
-        </div>
+      <div className="flex items-center justify-end gap-4 px-4 py-4">
         <button
           onClick={onApprove}
           disabled={disabled}

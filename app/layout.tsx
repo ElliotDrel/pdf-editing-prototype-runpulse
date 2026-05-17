@@ -20,6 +20,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://example.com'),
   title: 'Pulse Form Fill demo',
   description: "Form Fill shipped the engine. Here's a sketch of the UI layer.",
   openGraph: {

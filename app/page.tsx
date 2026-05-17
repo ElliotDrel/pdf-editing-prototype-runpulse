@@ -1,5 +1,6 @@
 import { Header } from '@/components/Header';
 import { Demo } from '@/components/Demo';
+import { Memo } from '@/components/Memo';
 import { Footer } from '@/components/Footer';
 
 export default function Page() {
@@ -7,6 +8,7 @@ export default function Page() {
     <main className="max-w-[720px] mx-auto px-6 py-14">
       <Header />
       <Demo />
+      <Memo />
       <Footer />
     </main>
   );

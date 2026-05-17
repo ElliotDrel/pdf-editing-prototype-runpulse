@@ -7,7 +7,7 @@ import { zonesForPdf } from '@/lib/input-zones';
 import { SAMPLE_FIELDS } from '@/lib/sample-data';
 import { REFERRAL_FIELDS } from '@/lib/referral-data';
 import { tierFromConfidence } from '@/lib/types';
-import type { Field, PdfKey, ExtractSource, RenderBlock } from '@/lib/types';
+import type { Field, PdfKey, ExtractSource } from '@/lib/types';
 import type { PulseTextBlock } from '@/lib/pulse';
 
 export const runtime = 'nodejs';
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const textBlocks = result.Text ?? [];
 
     if (textBlocks.length === 0) {
-      return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource, blocks: [] });
+      return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource });
     }
 
     const zones = zonesForPdf(pdfKey);
@@ -82,16 +82,9 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const renderBlocks: RenderBlock[] = [
-      ...( result.Text ?? []).map((b) => ({ content: b.content, bbox: b.bounding_box, page: b.page_number, blockType: 'Text' as const })),
-      ...(result.Title ?? []).map((b) => ({ content: b.content, bbox: b.bounding_box, page: b.page_number, blockType: 'Title' as const })),
-      ...(result.Header ?? []).map((b) => ({ content: b.content, bbox: b.bounding_box, page: b.page_number, blockType: 'Header' as const })),
-      ...(result.Footer ?? []).map((b) => ({ content: b.content, bbox: b.bounding_box, page: b.page_number, blockType: 'Footer' as const })),
-    ];
-
-    return NextResponse.json({ fields, source: 'pulse' as ExtractSource, blocks: renderBlocks });
+    return NextResponse.json({ fields, source: 'pulse' as ExtractSource });
   } catch (err) {
     console.error('extract route error:', err);
-    return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource, blocks: [] });
+    return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource });
   }
 }

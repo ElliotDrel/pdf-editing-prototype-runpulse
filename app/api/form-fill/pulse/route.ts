@@ -3,22 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildInstructions, fillForm } from '@/lib/pulse';
+import type { PdfKey } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 interface RequestBody {
   fields: Array<{ id: string; label: string; value: string; type: 'text' | 'checkbox' }>;
+  pdfKey?: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { fields } = (await req.json()) as RequestBody;
+    const { fields, pdfKey: rawKey } = (await req.json()) as RequestBody;
     if (!Array.isArray(fields)) {
       return NextResponse.json({ error: 'fields must be array' }, { status: 400 });
     }
 
-    const pdfPath = resolve(process.cwd(), 'public/sample-prior-auth.pdf');
+    const pdfKey = (rawKey === 'referral' ? 'referral' : 'prior-auth') as PdfKey;
+    const filename = pdfKey === 'referral' ? 'sample-referral.pdf' : 'sample-prior-auth.pdf';
+    const pdfPath = resolve(process.cwd(), 'public', filename);
     const sourcePdf = new Uint8Array(readFileSync(pdfPath));
 
     const instructions = buildInstructions(fields);

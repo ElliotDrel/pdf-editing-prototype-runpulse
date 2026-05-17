@@ -1,6 +1,7 @@
 // lib/pdf-stamp.ts
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { zoneForField } from './input-zones';
+import type { PdfKey } from './types';
 
 export interface StampField {
   id: string;
@@ -8,13 +9,17 @@ export interface StampField {
   type: 'text' | 'checkbox';
 }
 
-export async function stampFields(sourcePdf: Uint8Array | Buffer, fields: StampField[]): Promise<Uint8Array> {
+export async function stampFields(
+  sourcePdf: Uint8Array | Buffer,
+  fields: StampField[],
+  pdfKey: PdfKey = 'prior-auth',
+): Promise<Uint8Array> {
   const doc = await PDFDocument.load(sourcePdf);
   const helv = await doc.embedFont(StandardFonts.Helvetica);
   const helvBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
   for (const f of fields) {
-    const zone = zoneForField(f.id);
+    const zone = zoneForField(f.id, pdfKey);
     if (!zone) continue;
     const page = doc.getPage(zone.page - 1);
 

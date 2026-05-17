@@ -55,6 +55,65 @@ const PDF_SRC: Record<PdfKey, string> = {
   'referral': '/sample-referral.pdf#toolbar=0&navpanes=0&scrollbar=0',
 };
 
+function FillNotification({
+  onDismiss,
+  onNavigate,
+}: {
+  onDismiss: () => void;
+  onNavigate: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setEntered(true), 16);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className={`fixed top-6 right-6 z-50 w-[320px] rounded-xl border border-accent/25 bg-bg-elev shadow-2xl overflow-hidden transition-all duration-300 ease-out ${
+        entered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'
+      }`}
+    >
+      <div className="h-[3px] bg-accent" />
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0"
+              style={{ animation: 'pulseDot 2s ease-in-out infinite' }}
+            />
+            <span className="font-mono text-[9px] uppercase tracking-widest text-accent">
+              Pulse fill complete
+            </span>
+          </div>
+          <button
+            onClick={onDismiss}
+            className="font-mono text-[11px] text-fg-dim hover:text-fg transition-colors"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer group"
+          onClick={onNavigate}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate(); }}
+        >
+          <p className="font-body text-sm text-fg-muted leading-snug mb-2">
+            Both PDFs are ready. Pulse and reviewer renders are side by side below.
+          </p>
+          <p className="font-mono text-[10px] text-fg-dim group-hover:text-accent transition-colors duration-150">
+            Jump to comparison →
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExtractionLoader({ pdfKey }: { pdfKey: PdfKey }) {
   const meta = PDF_META[pdfKey];
   const [stepIdx, setStepIdx] = useState(0);
@@ -121,7 +180,14 @@ export function Demo() {
   const [extractSource, setExtractSource] = useState<ExtractSource>('fallback');
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [approve, setApprove] = useState<ApproveState>({ kind: 'idle' });
+  const [showFillNotif, setShowFillNotif] = useState(false);
   const reviewRef = useRef<HTMLDivElement>(null);
+  const comparisonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (approve.kind === 'done') setShowFillNotif(true);
+    if (approve.kind === 'idle') setShowFillNotif(false);
+  }, [approve.kind]);
 
   function updateField(id: string, patch: Partial<Field>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch, reviewed: true } : f)));
@@ -326,16 +392,27 @@ export function Demo() {
                 </div>
 
                 {(approve.kind === 'partial' || approve.kind === 'done') && (
-                  <Comparison
-                    reviewerUrl={approve.reviewerUrl}
-                    pulseUrl={approve.kind === 'done' ? approve.pulseUrl : undefined}
-                    pulseIsPrebaked={approve.kind === 'done' ? approve.pulseIsPrebaked : undefined}
-                  />
+                  <div ref={comparisonRef}>
+                    <Comparison
+                      reviewerUrl={approve.reviewerUrl}
+                      pulseUrl={approve.kind === 'done' ? approve.pulseUrl : undefined}
+                      pulseIsPrebaked={approve.kind === 'done' ? approve.pulseIsPrebaked : undefined}
+                    />
+                  </div>
                 )}
               </>
             )}
           </div>
         </div>
+      )}
+      {showFillNotif && (
+        <FillNotification
+          onDismiss={() => setShowFillNotif(false)}
+          onNavigate={() => {
+            setShowFillNotif(false);
+            comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+        />
       )}
     </section>
   );

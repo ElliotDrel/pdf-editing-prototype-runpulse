@@ -37,7 +37,7 @@ export function ReviewPane({ fields, activeFieldId, onSelectField, onUpdateField
               value={f.value}
               onChange={(e) => onUpdateField(f.id, { value: e.target.value })}
               onClick={(e) => e.stopPropagation()}
-              className="w-full bg-transparent font-mono text-sm text-fg outline-none focus:bg-bg/40 px-1"
+              className="w-full bg-transparent font-mono text-sm text-fg outline-none focus:bg-bg/40 px-1 min-h-[44px]"
             />
             {f.flag && (
               <div className="mt-1 italic text-xs text-fg-muted">{f.flag}</div>

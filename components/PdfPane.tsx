@@ -20,7 +20,7 @@ function FieldCell({ field, active, onSelect }: { field: Field; active: boolean;
   return (
     <button
       onClick={onSelect}
-      className={`block w-full text-left px-3 py-2 border-b ${tintFor(field.tier, active)} transition-colors hover:bg-paper-ink/5`}
+      className={`block w-full text-left px-3 py-2 min-h-[44px] border-b ${tintFor(field.tier, active)} transition-colors hover:bg-paper-ink/5`}
     >
       <div className="font-mono text-[10px] uppercase tracking-wider text-paper-ink/60">
         {field.label}

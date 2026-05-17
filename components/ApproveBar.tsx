@@ -51,7 +51,7 @@ export function ApproveBar({ fields, state, onApprove }: Props) {
       <button
         onClick={onApprove}
         disabled={disabled}
-        className={`font-mono text-xs px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonClass}`}
+        className={`font-mono text-xs px-4 py-2 min-h-[44px] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonClass}`}
       >
         {buttonLabel}
       </button>

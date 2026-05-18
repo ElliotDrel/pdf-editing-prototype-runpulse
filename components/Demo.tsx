@@ -1,10 +1,10 @@
 // components/Demo.tsx
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { SAMPLE_FIELDS } from '@/lib/sample-data';
 import { REFERRAL_FIELDS } from '@/lib/referral-data';
-import type { Field, PdfKey, ExtractSource } from '@/lib/types';
+import type { Field, PdfKey } from '@/lib/types';
 import { PdfEditPane } from './PdfEditPane';
 import { ApproveBar } from './ApproveBar';
 
@@ -14,7 +14,8 @@ export type ApproveState =
   | { kind: 'done'; pulseUrl: string; pulseIsPrebaked?: boolean }
   | { kind: 'error'; message: string };
 
-type Phase = 'selecting' | 'extracting' | 'reviewing';
+type Phase = 'selecting' | 'reviewing';
+type LeftView = 'original' | 'filled';
 
 const PDF_META: Record<PdfKey, {
   label: string;
@@ -44,44 +45,35 @@ const PDF_SRC: Record<PdfKey, string> = {
   'referral': '/sample-referral.pdf#toolbar=0&navpanes=0&scrollbar=0',
 };
 
+// Measured average for Pulse /form/fill with a pre-cleared PDF: ~55 s.
+const FILL_EXPECTED_MS = 60_000;
+
 export function Demo() {
   const [phase, setPhase] = useState<Phase>('selecting');
   const [pdfKey, setPdfKey] = useState<PdfKey>('prior-auth');
   const [fields, setFields] = useState<Field[]>([]);
-  const [extractSource, setExtractSource] = useState<ExtractSource>('fallback');
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [approve, setApprove] = useState<ApproveState>({ kind: 'idle' });
+  const [leftView, setLeftView] = useState<LeftView>('original');
   const reviewRef = useRef<HTMLDivElement>(null);
   const clearedPdfRef = useRef<Promise<Blob | null> | null>(null);
+
+  // Switch left panel to filled PDF when Pulse returns
+  useEffect(() => {
+    if (approve.kind === 'done') setLeftView('filled');
+  }, [approve.kind]);
 
   function updateField(id: string, patch: Partial<Field>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch, reviewed: true } : f)));
   }
 
-  async function selectPdf(key: PdfKey) {
+  function selectPdf(key: PdfKey) {
     setPdfKey(key);
-    setPhase('extracting');
-    setFields([]);
+    setFields(key === 'referral' ? REFERRAL_FIELDS : SAMPLE_FIELDS);
     setApprove({ kind: 'idle' });
     setActiveFieldId(null);
+    setLeftView('original');
     clearedPdfRef.current = null;
-
-    try {
-      const res = await fetch('/api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfKey: key }),
-      });
-      if (!res.ok) throw new Error(`extract ${res.status}`);
-      const data = (await res.json()) as { fields: Field[]; source: ExtractSource };
-      setFields(data.fields);
-      setExtractSource(data.source);
-    } catch {
-      const fallback = key === 'referral' ? REFERRAL_FIELDS : SAMPLE_FIELDS;
-      setFields(fallback);
-      setExtractSource('fallback');
-    }
-
     setPhase('reviewing');
     setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
 
@@ -99,7 +91,6 @@ export function Demo() {
     const fieldSlims = fields.map((f) => ({ id: f.id, label: f.label, value: f.value, type: f.type }));
 
     try {
-      // Await the pre-cleared PDF (usually already resolved by the time user hits Approve)
       const clearedBlob = clearedPdfRef.current ? await clearedPdfRef.current : null;
 
       let res: Response;
@@ -109,7 +100,6 @@ export function Demo() {
         fd.append('fields', JSON.stringify(fieldSlims));
         res = await fetch('/api/form-fill/pulse', { method: 'POST', body: fd });
       } else {
-        // Fallback: fill route will clear itself
         res = await fetch('/api/form-fill/pulse', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -173,13 +163,13 @@ export function Demo() {
         </div>
       )}
 
-      {(phase === 'extracting' || phase === 'reviewing') && (
+      {phase === 'reviewing' && (
         <div ref={reviewRef} className="border-y border-border">
           {/* Toolbar */}
           <div className="px-8 lg:px-16 py-3 flex items-center justify-between border-b border-border bg-bg-elev">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setPhase('selecting'); setApprove({ kind: 'idle' }); }}
+                onClick={() => { setPhase('selecting'); setApprove({ kind: 'idle' }); setLeftView('original'); }}
                 className="font-mono text-[10px] text-fg-dim hover:text-fg transition-colors"
               >
                 ← change doc
@@ -187,43 +177,74 @@ export function Demo() {
               <span className="text-border">|</span>
               <div className="font-mono text-xs text-fg-muted">{meta.filename}</div>
             </div>
-            <div className="flex items-center gap-3">
-              {extractSource === 'pulse' && phase === 'reviewing' && (
-                <div className="font-mono text-[10px] text-accent/70">✓ Pulse /extract</div>
-              )}
-              <div className="font-mono text-xs text-accent">DEMO</div>
-            </div>
+            <div className="font-mono text-xs text-accent">DEMO</div>
           </div>
 
           {/* Body */}
           <div className="px-8 lg:px-16 py-6 bg-bg">
-            {phase === 'extracting' ? (
-              <div className="flex flex-col items-center justify-center py-24 gap-3">
-                <span
-                  className="w-2.5 h-2.5 rounded-full bg-accent"
-                  style={{ animation: 'pulseDot 1.4s ease-in-out infinite' }}
-                />
-                <span className="font-mono text-xs text-fg-muted">Extracting fields&hellip;</span>
+            <div className="grid grid-cols-2 gap-6 items-start">
+
+                {/* Left: PDF viewer — original or Pulse-filled */}
+                <div className="rounded-xl overflow-hidden border border-border">
+                  <div className="px-4 py-2.5 bg-bg-elev border-b border-border flex items-center justify-between flex-shrink-0">
+                    <div className="font-mono text-xs text-fg-muted">
+                      {leftView === 'filled' ? 'pulse_filled.pdf' : meta.filename}
+                    </div>
+                    {approve.kind === 'done' && (
+                      <div className="flex items-center gap-1 bg-bg rounded-md p-0.5">
+                        <button
+                          onClick={() => setLeftView('filled')}
+                          className={`font-mono text-[10px] px-2.5 py-1 rounded transition-colors ${
+                            leftView === 'filled' ? 'bg-bg-elev-2 text-fg' : 'text-fg-dim hover:text-fg'
+                          }`}
+                        >
+                          Filled
+                        </button>
+                        <button
+                          onClick={() => setLeftView('original')}
+                          className={`font-mono text-[10px] px-2.5 py-1 rounded transition-colors ${
+                            leftView === 'original' ? 'bg-bg-elev-2 text-fg' : 'text-fg-dim hover:text-fg'
+                          }`}
+                        >
+                          Original
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-bg-elev-2" style={{ height: '600px' }}>
+                    <iframe
+                      src={
+                        leftView === 'filled' && approve.kind === 'done'
+                          ? approve.pulseUrl
+                          : PDF_SRC[pdfKey]
+                      }
+                      className="w-full h-full"
+                      title={leftView === 'filled' ? 'Pulse filled PDF' : meta.filename}
+                    />
+                  </div>
+                </div>
+
+                {/* Right: editable HTML form + approve */}
+                <div className="flex flex-col gap-0 rounded-xl overflow-hidden border border-border">
+                  <div className="px-4 py-2.5 bg-bg-elev border-b border-border flex-shrink-0">
+                    <div className="font-mono text-xs text-fg-muted">edited copy</div>
+                  </div>
+                  <div className="p-5 bg-bg-elev-2">
+                    <PdfEditPane
+                      fields={fields}
+                      activeFieldId={activeFieldId}
+                      pdfKey={pdfKey}
+                      onSelectField={setActiveFieldId}
+                      onUpdateField={updateField}
+                    />
+                  </div>
+                  <div className="border-t border-border bg-bg-elev">
+                    <ApproveBar state={approve} onApprove={onApprove} expectedMs={FILL_EXPECTED_MS} />
+                  </div>
+                </div>
+
               </div>
-            ) : (
-              <div className="rounded-xl overflow-hidden border border-border">
-                <div className="px-4 py-2.5 bg-bg-elev border-b border-border flex items-center flex-shrink-0">
-                  <div className="font-mono text-xs text-fg-muted">{meta.filename}</div>
-                </div>
-                <div className="p-5 bg-bg-elev-2">
-                  <PdfEditPane
-                    fields={fields}
-                    activeFieldId={activeFieldId}
-                    pdfKey={pdfKey}
-                    onSelectField={setActiveFieldId}
-                    onUpdateField={updateField}
-                  />
-                </div>
-                <div className="border-t border-border bg-bg-elev">
-                  <ApproveBar state={approve} onApprove={onApprove} />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

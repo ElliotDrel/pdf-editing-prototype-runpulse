@@ -1,32 +1,64 @@
 // components/ApproveBar.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ApproveState } from './Demo';
 
 interface Props {
   state: ApproveState;
   onApprove: () => void;
+  expectedMs?: number;
 }
 
-export function ApproveBar({ state, onApprove }: Props) {
+const TICK_MS = 80;
+const FILL_TARGET = 75; // reaches 75% at expectedMs, then crawls
+
+export function ApproveBar({ state, onApprove, expectedMs = 8000 }: Props) {
   const [barW, setBarW] = useState(0);
-  const [barTransition, setBarTransition] = useState('none');
+  const startTimeRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (state.kind === 'loading') {
-      setBarTransition('width 10s cubic-bezier(0.25, 0, 0.05, 1)');
-      setBarW(85);
-    } else if (state.kind === 'done') {
-      setBarTransition('width 0.4s ease-out');
-      setBarW(100);
-    } else {
-      setBarTransition('none');
+      startTimeRef.current = Date.now();
       setBarW(0);
+
+      intervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - (startTimeRef.current ?? Date.now());
+        const progress = elapsed / expectedMs;
+
+        if (progress < 1) {
+          // Linear up to FILL_TARGET%
+          setBarW(progress * FILL_TARGET);
+        } else {
+          // Past expected time: crawl slowly from FILL_TARGET toward 97%
+          const overage = progress - 1;
+          const extra = (1 - Math.exp(-overage * 0.6)) * (97 - FILL_TARGET);
+          setBarW(FILL_TARGET + extra);
+        }
+      }, TICK_MS);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (state.kind === 'done') {
+        setBarW(100);
+      } else if (state.kind === 'idle' || state.kind === 'error') {
+        setBarW(0);
+      }
     }
-  }, [state.kind]);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [state.kind, expectedMs]);
 
   const showBar = state.kind === 'loading' || state.kind === 'done';
+  const transition = state.kind === 'done' ? 'width 0.3s ease-out' : 'none';
 
   if (state.kind === 'done') {
     return (
@@ -34,7 +66,7 @@ export function ApproveBar({ state, onApprove }: Props) {
         <div className="w-full h-[3px] bg-border/40 relative overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 bg-accent"
-            style={{ width: `${barW}%`, transition: barTransition }}
+            style={{ width: `${barW}%`, transition }}
           />
         </div>
         <div className="flex items-center justify-between gap-4 px-4 py-4">
@@ -80,7 +112,7 @@ export function ApproveBar({ state, onApprove }: Props) {
       >
         <div
           className="absolute inset-y-0 left-0 bg-accent"
-          style={{ width: `${barW}%`, transition: barTransition }}
+          style={{ width: `${barW}%`, transition }}
         />
       </div>
       <div className="flex items-center justify-end gap-4 px-4 py-4">

@@ -69,16 +69,7 @@ export function ApproveBar({ state, onApprove, expectedMs = 8000 }: Props) {
             style={{ width: `${barW}%`, transition }}
           />
         </div>
-        <div className="flex items-center justify-between gap-4 px-4 py-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-accent" />
-            <span className="text-sm text-fg-muted">
-              Pulse filled your PDF
-              {state.pulseIsPrebaked && (
-                <span className="font-mono text-[10px] text-warn ml-2">(prebaked · live render timed out)</span>
-              )}
-            </span>
-          </div>
+        <div className="flex items-center justify-end gap-4 px-4 py-4">
           <a
             href={state.pulseUrl}
             download="pulse_filled.pdf"

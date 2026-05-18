@@ -9,6 +9,7 @@ import { REFERRAL_FIELDS } from '@/lib/referral-data';
 import { tierFromConfidence } from '@/lib/types';
 import type { Field, PdfKey, ExtractSource } from '@/lib/types';
 import type { PulseTextBlock } from '@/lib/pulse';
+import { readCacheJson, writeCacheJson } from '@/lib/api-cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -52,12 +53,19 @@ export async function POST(req: NextRequest) {
   const filename = pdfKey === 'referral' ? 'sample-referral.pdf' : 'sample-prior-auth.pdf';
   const fallbackFields = pdfKey === 'referral' ? REFERRAL_FIELDS : SAMPLE_FIELDS;
 
+  // Return cached extract result if available
+  const cached = readCacheJson<{ fields: Field[]; source: ExtractSource }>(`extract-${pdfKey}.json`);
+  if (cached) {
+    console.log(`extract: cache hit for ${pdfKey}`);
+    return NextResponse.json(cached);
+  }
+
   try {
     const pdfPath = resolve(process.cwd(), 'public', filename);
     const pdf = new Uint8Array(readFileSync(pdfPath));
 
-    const result = await extractFields(pdf);
-    const textBlocks = result.Text ?? [];
+    const extracted = await extractFields(pdf);
+    const textBlocks = extracted.Text ?? [];
 
     if (textBlocks.length === 0) {
       return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource });
@@ -82,7 +90,9 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ fields, source: 'pulse' as ExtractSource });
+    const result = { fields, source: 'pulse' as ExtractSource };
+    writeCacheJson(`extract-${pdfKey}.json`, result);
+    return NextResponse.json(result);
   } catch (err) {
     console.error('extract route error:', err);
     return NextResponse.json({ fields: fallbackFields, source: 'fallback' as ExtractSource });

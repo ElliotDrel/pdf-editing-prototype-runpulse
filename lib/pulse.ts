@@ -45,7 +45,13 @@ export interface FillCell {
   [k: string]: unknown;
 }
 
-export async function clearForm(pdf: Uint8Array): Promise<Uint8Array> {
+export interface ClearResult {
+  pdf: Uint8Array;
+  formFields: FillCell[];
+  formId: string;
+}
+
+export async function clearForm(pdf: Uint8Array): Promise<ClearResult> {
   const apiKey = process.env.PULSE_API_KEY;
   if (!apiKey) throw new Error('PULSE_API_KEY not set');
 
@@ -62,15 +68,16 @@ export async function clearForm(pdf: Uint8Array): Promise<Uint8Array> {
     throw new Error(`pulse /form/clear failed: ${res.status} ${detail}`);
   }
 
-  const ctype = res.headers.get('Content-Type') ?? '';
-  if (ctype.includes('application/json')) {
-    const body = await res.json() as { pdf_url?: string };
-    if (!body.pdf_url) throw new Error('pulse /form/clear response missing pdf_url');
-    const pdfRes = await fetch(body.pdf_url, { headers: { 'x-api-key': apiKey } });
-    if (!pdfRes.ok) throw new Error(`pulse /form/clear pdf_url fetch failed: ${pdfRes.status}`);
-    return new Uint8Array(await pdfRes.arrayBuffer());
-  }
-  return new Uint8Array(await res.arrayBuffer());
+  const body = await res.json() as { pdf_url?: string; form_fields?: FillCell[]; form_id?: string };
+  if (!body.pdf_url) throw new Error('pulse /form/clear response missing pdf_url');
+  const pdfRes = await fetch(body.pdf_url, { headers: { 'x-api-key': apiKey } });
+  if (!pdfRes.ok) throw new Error(`pulse /form/clear pdf_url fetch failed: ${pdfRes.status}`);
+
+  return {
+    pdf: new Uint8Array(await pdfRes.arrayBuffer()),
+    formFields: body.form_fields ?? [],
+    formId: body.form_id ?? '',
+  };
 }
 
 export async function fillForm(

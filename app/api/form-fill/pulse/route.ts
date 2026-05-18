@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
       const filename = pdfKey === 'referral' ? 'sample-referral.pdf' : 'sample-prior-auth.pdf';
       const pdfPath = resolve(process.cwd(), 'public', filename);
       const rawPdf = new Uint8Array(readFileSync(pdfPath));
-      sourcePdf = await clearForm(rawPdf);
+      const cleared = await clearForm(rawPdf);
+      sourcePdf = cleared.pdf;
     }
 
     const instructions = buildInstructions(fields);

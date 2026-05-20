@@ -2,6 +2,19 @@
 type ConfidenceTier = "high" | "mid" | "low";
 export type PdfKey = "prior-auth" | "referral";
 
+export const PDF_TEMPLATES: PdfKey[] = ["prior-auth", "referral"];
+
+export function parseTemplateParam(
+	param: string | undefined | null,
+): PdfKey | null {
+	if (param === "prior-auth" || param === "referral") return param;
+	return null;
+}
+
+export function editableFormHref(template: PdfKey): string {
+	return `/editable-form?template=${template}`;
+}
+
 export interface Field {
 	id: string;
 	label: string;

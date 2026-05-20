@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
 import { PdfViewer } from "./PdfViewer";
 
 type PdfVariant = "source" | "cleared" | "filled";
@@ -27,8 +28,8 @@ function ToggleButton({
 	return (
 		<button
 			type="button"
-			onClick={onClick}
 			disabled={disabled}
+			onClick={onClick}
 			className={`font-mono text-[10px] px-3 py-1.5 rounded-md transition-all duration-200 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40 ${
 				active
 					? "bg-accent text-bg font-medium shadow-sm"
@@ -52,10 +53,14 @@ function PdfStage({
 	return (
 		<div className="flex flex-col min-h-0 flex-1">
 			<div className="mb-2 flex-shrink-0">
-				<div className="font-mono text-[10px] uppercase tracking-widest text-accent">{label}</div>
+				<div className="font-mono text-[10px] uppercase tracking-widest text-accent">
+					{label}
+				</div>
 				<div className="text-[11px] text-fg-dim mt-0.5">{description}</div>
 			</div>
-			<div className="rounded-xl overflow-hidden border border-border flex-1 min-h-[480px] lg:min-h-[calc(100vh-220px)] bg-bg-elev-2">
+			<div
+				className={`rounded-xl overflow-hidden border border-border bg-bg-elev-2 ${PDF_VIEWER_FRAME_CLASS}`}
+			>
 				<PdfViewer src={src} />
 			</div>
 		</div>
@@ -96,28 +101,33 @@ export function ResultWorkspace({
 		return clearedPdfSrc ?? sourcePdfSrc;
 	};
 
-	const singleMeta: Record<PdfVariant, { label: string; description: string }> = {
-		source: {
-			label: "PDF · original source",
-			description: "Original selected PDF before Pulse clears existing values.",
-		},
-		cleared: {
-			label: "PDF · cleared template",
-			description: clearedAvailable
-				? "Cleared PDF from Pulse /form/clear. Blank fields ready to fill."
-				: "Source PDF shown while Pulse /form/clear is unavailable.",
-		},
-		filled: {
-			label: "PDF · filled by Pulse",
-			description: "Final document stamped with your reviewed field values.",
-		},
-	};
+	const singleMeta: Record<PdfVariant, { label: string; description: string }> =
+		{
+			source: {
+				label: "PDF · original source",
+				description:
+					"Original selected PDF before Pulse clears existing values.",
+			},
+			cleared: {
+				label: "PDF · cleared template",
+				description: clearedAvailable
+					? "Cleared PDF from Pulse /form/clear. Blank fields ready to fill."
+					: "Source PDF shown while Pulse /form/clear is unavailable.",
+			},
+			filled: {
+				label: "PDF · filled by Pulse",
+				description: "Final document stamped with your reviewed field values.",
+			},
+		};
 
 	return (
 		<div className="px-8 lg:px-16 py-4 lg:py-6 flex flex-col min-h-0 flex-1">
 			<div className="flex flex-wrap items-center justify-center gap-2 mb-4 flex-shrink-0">
 				<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
-					<ToggleButton active={activePdf === "source"} onClick={() => selectPdf("source")}>
+					<ToggleButton
+						active={activePdf === "source"}
+						onClick={() => selectPdf("source")}
+					>
 						Original
 					</ToggleButton>
 					<ToggleButton
@@ -127,16 +137,25 @@ export function ResultWorkspace({
 					>
 						Cleared PDF
 					</ToggleButton>
-					<ToggleButton active={activePdf === "filled"} onClick={() => selectPdf("filled")}>
+					<ToggleButton
+						active={activePdf === "filled"}
+						onClick={() => selectPdf("filled")}
+					>
 						Filled PDF
 					</ToggleButton>
 				</div>
 
 				<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
-					<ToggleButton active={layout === "single"} onClick={() => selectLayout("single")}>
+					<ToggleButton
+						active={layout === "single"}
+						onClick={() => selectLayout("single")}
+					>
 						Single view
 					</ToggleButton>
-					<ToggleButton active={layout === "split"} onClick={() => selectLayout("split")}>
+					<ToggleButton
+						active={layout === "split"}
+						onClick={() => selectLayout("split")}
+					>
 						Split view
 					</ToggleButton>
 				</div>

@@ -2,7 +2,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+	editableFormPreparePath,
+	editableFormResultPath,
+	editableFormReviewPath,
+} from "@/lib/editable-form-routes";
+import {
+	getSessionClearedPdf,
+	getSessionFilledPdf,
+	setSessionClearedPdf,
+	setSessionFilledPdf,
+} from "@/lib/editable-form-session";
+import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
 import { SAMPLE_FIELDS } from "@/lib/sample-data";
 import type { Field, PdfKey } from "@/lib/types";
@@ -19,10 +32,11 @@ export type ApproveState =
 	| { kind: "done"; pulseUrl: string; pulseIsPrebaked?: boolean }
 	| { kind: "error"; message: string };
 
+export type EditableFormPhase = "prepare" | "review" | "result";
+
 type LeftView = "source" | "cleared" | "filled";
 
 type PrepareState = { kind: "loading"; step: PrepareStep } | { kind: "ready" };
-type WorkspaceMode = "edit" | "result";
 
 const FALLBACK_CLEARED: Partial<Record<PdfKey, string>> = {
 	referral: "/sample-referral-cleared.pdf",
@@ -37,30 +51,45 @@ const FILL_EXPECTED_MS = 90_000;
 
 interface Props {
 	pdfKey: PdfKey;
+	phase: EditableFormPhase;
 }
 
-export function ReviewWorkspace({ pdfKey }: Props) {
-	const [prepare, setPrepare] = useState<PrepareState>({ kind: "loading", step: "clear" });
+export function ReviewWorkspace({ pdfKey, phase }: Props) {
+	const router = useRouter();
+	const [prepare, setPrepare] = useState<PrepareState>({
+		kind: "loading",
+		step: "clear",
+	});
 	const [fields, setFields] = useState<Field[]>([]);
 	const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 	const [approve, setApprove] = useState<ApproveState>({ kind: "idle" });
 	const [leftView, setLeftView] = useState<LeftView>("cleared");
 	const [clearedPdfUrl, setClearedPdfUrl] = useState<string | null>(null);
 	const [highlightApprove, setHighlightApprove] = useState(false);
-	const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("edit");
+	const [resultFilledSrc, setResultFilledSrc] = useState<string | null>(null);
+	const [resultClearedSrc, setResultClearedSrc] = useState<string | null>(null);
+	const [hasFilledSession, setHasFilledSession] = useState(false);
 	const clearedPdfBlobRef = useRef<Blob | null>(null);
 	const clearedPdfUrlRef = useRef<string | null>(null);
 	const approveBarRef = useRef<HTMLDivElement | null>(null);
 	const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
-		if (approve.kind === "done") {
-			queueMicrotask(() => {
-				setLeftView("filled");
-				setWorkspaceMode("result");
-			});
-		}
-	}, [approve.kind]);
+		if (phase !== "result") return;
+		setResultFilledSrc(getSessionFilledPdf(pdfKey));
+		setResultClearedSrc(getSessionClearedPdf(pdfKey));
+	}, [phase, pdfKey]);
+
+	useEffect(() => {
+		if (phase !== "review") return;
+		setHasFilledSession(Boolean(getSessionFilledPdf(pdfKey)));
+	}, [phase, pdfKey]);
+
+	useEffect(() => {
+		if (phase !== "prepare") return;
+		if (prepare.kind !== "ready") return;
+		router.replace(editableFormReviewPath(pdfKey));
+	}, [phase, prepare.kind, pdfKey, router]);
 
 	useEffect(() => {
 		return () => {
@@ -69,8 +98,11 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 	}, []);
 
 	useEffect(() => {
+		if (phase === "result") return;
+
 		let cancelled = false;
-		const fallbackFields = pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
+		const fallbackFields =
+			pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
 
 		queueMicrotask(() => {
 			if (cancelled) return;
@@ -80,7 +112,6 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 			setActiveFieldId(null);
 			setLeftView("cleared");
 			setHighlightApprove(false);
-			setWorkspaceMode("edit");
 		});
 
 		if (clearedPdfUrlRef.current) {
@@ -117,6 +148,7 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 			if (cancelled) return;
 
 			setClearedPdfUrl(clearedUrl);
+			if (clearedUrl) setSessionClearedPdf(pdfKey, clearedUrl);
 			setLeftView(clearedUrl ? "cleared" : "source");
 			setPrepare({ kind: "loading", step: "extract" });
 
@@ -151,7 +183,7 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 				clearedPdfUrlRef.current = null;
 			}
 		};
-	}, [pdfKey]);
+	}, [pdfKey, phase]);
 
 	function updateField(id: string, patch: Partial<Field>) {
 		setFields((prev) =>
@@ -170,6 +202,12 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 			setHighlightApprove(false);
 			highlightTimerRef.current = null;
 		}, 1800);
+	}
+
+	function goToFilledResult(filledUrl: string) {
+		if (clearedPdfUrl) setSessionClearedPdf(pdfKey, clearedPdfUrl);
+		setSessionFilledPdf(pdfKey, filledUrl);
+		router.push(editableFormResultPath(pdfKey));
 	}
 
 	async function onApprove() {
@@ -201,17 +239,66 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 
 			if (!res.ok) throw new Error(`pulse ${res.status}`);
 			const pulseUrl = URL.createObjectURL(await res.blob());
-			setApprove({ kind: "done", pulseUrl });
+			goToFilledResult(pulseUrl);
 		} catch {
-			setApprove({
-				kind: "done",
-				pulseUrl: "/prebaked-pulse-fill.pdf",
-				pulseIsPrebaked: true,
-			});
+			goToFilledResult("/prebaked-pulse-fill.pdf");
 		}
 	}
 
+	function phaseNavLinks() {
+		const item = (p: EditableFormPhase, label: string) => (
+			<Link
+				href={
+					p === "prepare"
+						? editableFormPreparePath(pdfKey)
+						: p === "review"
+							? editableFormReviewPath(pdfKey)
+							: editableFormResultPath(pdfKey)
+				}
+				className={`hover:text-fg transition-colors ${phase === p ? "text-accent font-medium" : ""}`}
+			>
+				{label}
+			</Link>
+		);
+		return (
+			<div className="px-8 lg:px-16 py-1.5 border-b border-border/40 flex flex-wrap justify-center gap-x-3 gap-y-1 font-mono text-[9px] text-fg-dim uppercase tracking-wider">
+				{item("prepare", "Prepare")}
+				<span aria-hidden>·</span>
+				{item("review", "Review")}
+				<span aria-hidden>·</span>
+				{item("result", "Result")}
+			</div>
+		);
+	}
+
 	function stepText() {
+		if (phase === "result") {
+			if (!resultFilledSrc) {
+				return (
+					<span className="text-fg-dim text-sm font-medium">
+						No filled PDF in this browser tab yet.{" "}
+						<Link
+							href={editableFormReviewPath(pdfKey)}
+							className="text-accent underline font-bold hover:text-fg"
+						>
+							Open review
+						</Link>{" "}
+						and approve a fill first.
+					</span>
+				);
+			}
+			return (
+				<span className="text-accent text-sm font-medium">
+					3. Success! Compare{" "}
+					<span className="underline font-bold">
+						Original, Cleared, and Filled
+					</span>{" "}
+					PDFs. Switch to{" "}
+					<span className="underline font-bold">split view</span> to compare
+					side by side.
+				</span>
+			);
+		}
 		if (prepare.kind === "loading") {
 			return (
 				<span className="text-accent text-sm font-medium animate-pulse">
@@ -219,10 +306,19 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 				</span>
 			);
 		}
+		if (phase === "prepare") {
+			return (
+				<span className="text-accent text-sm font-medium">
+					1. Prepare · clearing the template and extracting fields. Sending you
+					to review when ready.
+				</span>
+			);
+		}
 		if (approve.kind === "idle") {
 			return (
 				<span className="text-accent text-sm font-medium">
-					2. Review the extracted fields on the right, make corrections, then click{" "}
+					2. Review the extracted fields on the right, make corrections, then
+					click{" "}
 					<button
 						type="button"
 						onClick={focusApproveButton}
@@ -236,16 +332,8 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 		if (approve.kind === "loading") {
 			return (
 				<span className="text-accent text-sm font-medium animate-pulse">
-					Pulse is running form-fill to stamp your updated values onto the document...
-				</span>
-			);
-		}
-		if (approve.kind === "done") {
-			return (
-				<span className="text-accent text-sm font-medium">
-					3. Success! Compare{" "}
-					<span className="underline font-bold">Original, Cleared, and Filled</span> PDFs. Switch to{" "}
-					<span className="underline font-bold">split view</span> to compare side by side.
+					Pulse is running form-fill to stamp your updated values onto the
+					document...
 				</span>
 			);
 		}
@@ -261,7 +349,6 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 	const displayedPdfSrc =
 		leftView === "source" ? sourcePdfSrc : (clearedPdfSrc ?? sourcePdfSrc);
 	const showingClearedPdf = leftView === "cleared" && Boolean(clearedPdfSrc);
-	const showResultWorkspace = approve.kind === "done" && workspaceMode === "result";
 
 	return (
 		<div className="w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
@@ -278,20 +365,47 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 				right={<RunpulseLink />}
 			/>
 
+			{phaseNavLinks()}
+
 			<div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto bg-bg">
 				<div className="px-8 lg:px-16 py-2 border-b border-border/60 text-center">
 					{stepText()}
 				</div>
 
-				{prepare.kind === "loading" ? (
+				{phase === "result" ? (
+					resultFilledSrc ? (
+						<ResultWorkspace
+							sourcePdfSrc={sourcePdfSrc}
+							clearedPdfSrc={resultClearedSrc}
+							filledPdfSrc={resultFilledSrc}
+							onBackToEdit={() => router.push(editableFormReviewPath(pdfKey))}
+						/>
+					) : (
+						<div className="px-8 lg:px-16 py-16 text-center text-fg-dim text-sm max-w-md mx-auto">
+							Filled PDF URLs are kept in session storage for this tab after you
+							approve. Use{" "}
+							<Link
+								href={editableFormReviewPath(pdfKey)}
+								className="text-accent underline"
+							>
+								Review
+							</Link>{" "}
+							to run the flow, or open{" "}
+							<Link
+								href={editableFormPreparePath(pdfKey)}
+								className="text-accent underline"
+							>
+								Prepare
+							</Link>{" "}
+							from the top.
+						</div>
+					)
+				) : prepare.kind === "loading" ? (
 					<PrepareScreen step={prepare.step} />
-				) : showResultWorkspace ? (
-					<ResultWorkspace
-						sourcePdfSrc={sourcePdfSrc}
-						clearedPdfSrc={clearedPdfSrc}
-						filledPdfSrc={approve.pulseUrl}
-						onBackToEdit={() => setWorkspaceMode("edit")}
-					/>
+				) : phase === "prepare" ? (
+					<div className="px-8 lg:px-16 py-16 text-center text-fg-dim text-sm font-mono">
+						Opening review…
+					</div>
 				) : (
 					<div className="px-8 lg:px-16 py-4 lg:py-6">
 						<div className="grid grid-cols-2 gap-6 mb-2 flex-shrink-0">
@@ -343,13 +457,14 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 									Editable form · extracted by Pulse
 								</div>
 								<div className="text-[11px] text-fg-dim">
-									Field values parsed from the PDF via /extract. Edit any value before submitting.
+									Field values parsed from the PDF via /extract. Edit any value
+									before submitting.
 								</div>
 							</div>
 						</div>
 						<div className="grid grid-cols-2 gap-6 items-stretch">
 							<div className="rounded-xl overflow-hidden border border-border flex flex-col min-h-0">
-								<div className="bg-bg-elev-2 flex-1 min-h-[480px]">
+								<div className={`bg-bg-elev-2 ${PDF_VIEWER_FRAME_CLASS}`}>
 									<PdfViewer src={displayedPdfSrc} />
 								</div>
 							</div>
@@ -365,23 +480,18 @@ export function ReviewWorkspace({ pdfKey }: Props) {
 									/>
 								</div>
 								<div className="border-t border-border bg-bg-elev flex-shrink-0">
-									{approve.kind === "done" && (
+									{hasFilledSession && (
 										<div className="px-4 pt-3 text-center">
-											<button
-												type="button"
-												onClick={() => setWorkspaceMode("result")}
+											<Link
+												href={editableFormResultPath(pdfKey)}
 												className="font-mono text-[10px] text-accent underline hover:text-fg transition-colors"
 											>
 												View filled PDF results →
-											</button>
+											</Link>
 										</div>
 									)}
 									<ApproveBar
-										state={
-											workspaceMode === "edit" && approve.kind === "done"
-												? { kind: "idle" }
-												: approve
-										}
+										state={approve}
 										onApprove={onApprove}
 										expectedMs={FILL_EXPECTED_MS}
 										highlight={highlightApprove}

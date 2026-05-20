@@ -24,20 +24,20 @@ function FieldEditor({ field, active, onSelect, onUpdate }: EditorProps) {
 	if (!field) return null;
 
 	return (
-		<button
-			type="button"
+		<div
 			className={`w-full cursor-text rounded px-1.5 -mx-1.5 py-0.5 text-left transition-all duration-200 ${
 				active ? "bg-accent/5" : "hover:bg-paper-ink/[0.03]"
 			}`}
-			onClick={onSelect}
 		>
-			<div
-				className={`font-mono text-[7px] uppercase tracking-wider mb-0.5 select-none transition-colors duration-200 ${
+			<button
+				type="button"
+				className={`font-mono text-[7px] uppercase tracking-wider mb-0.5 select-none transition-colors duration-200 block text-left ${
 					active ? "text-accent font-semibold" : "text-paper-ink/40"
 				}`}
+				onClick={onSelect}
 			>
 				{field.label}
-			</div>
+			</button>
 
 			<div
 				className={`flex items-center gap-1.5 border-b pb-1 transition-all duration-250 ${
@@ -57,12 +57,12 @@ function FieldEditor({ field, active, onSelect, onUpdate }: EditorProps) {
 					type="text"
 					value={field.value}
 					onChange={(e) => onUpdate({ value: e.target.value })}
-					onClick={(e) => e.stopPropagation()}
+					onFocus={onSelect}
 					className="flex-1 min-w-0 bg-transparent font-body text-[11px] text-paper-ink outline-none"
 					placeholder="—"
 				/>
 			</div>
-		</button>
+		</div>
 	);
 }
 

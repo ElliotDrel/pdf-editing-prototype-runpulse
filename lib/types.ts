@@ -1,6 +1,7 @@
 // lib/types.ts
-type ConfidenceTier = "high" | "mid" | "low";
+export type ConfidenceTier = "high" | "mid" | "low";
 export type PdfKey = "prior-auth" | "referral";
+export type ExtractSource = "pulse" | "fallback";
 
 export const PDF_TEMPLATES: PdfKey[] = ["prior-auth", "referral"];
 
@@ -12,7 +13,7 @@ export function parseTemplateParam(
 }
 
 export function editableFormHref(template: PdfKey): string {
-	return `/editable-form?template=${template}`;
+	return `/editable-form/${template}/review`;
 }
 
 export interface Field {
@@ -37,4 +38,10 @@ export interface InputZone {
 	width: number;
 	height: number;
 	fontSize: number;
+}
+
+export function tierFromConfidence(c: number): ConfidenceTier {
+	if (c >= 0.9) return "high";
+	if (c >= 0.75) return "mid";
+	return "low";
 }

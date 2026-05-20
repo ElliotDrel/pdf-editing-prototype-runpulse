@@ -1,7 +1,7 @@
-import { isPulseMockMode } from "@/lib/pulse-mock";
+"use client";
 
 export function MockModeBanner() {
-	if (!isPulseMockMode()) return null;
+	if (process.env.NEXT_PUBLIC_PULSE_MOCK_MODE !== "1") return null;
 
 	return (
 		<div

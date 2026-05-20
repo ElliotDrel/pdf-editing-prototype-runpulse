@@ -1,58 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0F0E0C;
-  --bg-elev: #171614;
-  --bg-elev-2: #1E1C1A;
-  --fg: #EDE7DA;
-  --fg-muted: #9A9486;
-  --fg-dim: #65605A;
-  --border: #2A2724;
-  --border-strong: #3A3631;
-  --accent: #7BFF8F;
-  --accent-dim: #4A8A56;
-  --warn: #F5B547;
-  --danger: #FF7A6B;
-  --paper: #F4F0E6;
-  --paper-ink: #1A1814;
-  --paper-line: #C9C2B0;
+	--bg: #0f0e0c;
+	--bg-elev: #171614;
+	--bg-elev-2: #1e1c1a;
+	--fg: #ede7da;
+	--fg-muted: #9a9486;
+	--fg-dim: #65605a;
+	--border: #2a2724;
+	--border-strong: #3a3631;
+	--accent: #7bff8f;
+	--accent-dim: #4a8a56;
+	--warn: #f5b547;
+	--danger: #ff7a6b;
+	--paper: #f4f0e6;
+	--paper-ink: #1a1814;
+	--paper-line: #c9c2b0;
 }
 
 @theme inline {
-  --font-display: var(--font-instrument-serif), serif;
-  --font-body: var(--font-dm-sans), sans-serif;
-  --font-mono: var(--font-jetbrains-mono), monospace;
+	--font-display: var(--font-instrument-serif), serif;
+	--font-body: var(--font-dm-sans), sans-serif;
+	--font-mono: var(--font-jetbrains-mono), monospace;
 
-  --color-bg: var(--bg);
-  --color-bg-elev: var(--bg-elev);
-  --color-bg-elev-2: var(--bg-elev-2);
-  --color-fg: var(--fg);
-  --color-fg-muted: var(--fg-muted);
-  --color-fg-dim: var(--fg-dim);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
-  --color-warn: var(--warn);
-  --color-danger: var(--danger);
-  --color-paper: var(--paper);
-  --color-paper-ink: var(--paper-ink);
-  --color-paper-line: var(--paper-line);
+	--color-bg: var(--bg);
+	--color-bg-elev: var(--bg-elev);
+	--color-bg-elev-2: var(--bg-elev-2);
+	--color-fg: var(--fg);
+	--color-fg-muted: var(--fg-muted);
+	--color-fg-dim: var(--fg-dim);
+	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
+	--color-accent: var(--accent);
+	--color-accent-dim: var(--accent-dim);
+	--color-warn: var(--warn);
+	--color-danger: var(--danger);
+	--color-paper: var(--paper);
+	--color-paper-ink: var(--paper-ink);
+	--color-paper-line: var(--paper-line);
 }
 
-html, body {
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 16px;
-  line-height: 1.55;
+html,
+body {
+	background: var(--bg);
+	color: var(--fg);
+	font-size: 16px;
+	line-height: 1.55;
 }
 
 @keyframes riseIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 @keyframes pulseDot {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; box-shadow: 0 0 6px var(--accent); }
+	0%,
+	100% {
+		opacity: 0.6;
+	}
+	50% {
+		opacity: 1;
+		box-shadow: 0 0 6px var(--accent);
+	}
 }

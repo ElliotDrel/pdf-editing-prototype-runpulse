@@ -33,7 +33,7 @@ const ORIGINAL_PDF: Record<PdfKey, string> = {
 	referral: "/sample-referral.pdf",
 };
 
-const FILL_EXPECTED_MS = 230_000;
+const FILL_EXPECTED_MS = 90_000;
 
 interface Props {
 	pdfKey: PdfKey;

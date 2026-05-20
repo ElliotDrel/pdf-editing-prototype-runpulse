@@ -76,6 +76,33 @@ Next up:
 - ...
 ```
 
+## Global Directives
+
+- **Clarify before acting:** Before starting any task, exhaust all available context and tools (prior messages, provided files, permitted browsing, and accessible tools) to gather relevant information. Then keep asking focused clarifying questions (1-5 at a time), IF the intent, inputs, constraints, output format, audience/tone, or success criteria are unclear, or if you cannot complete this request successfully (accurately, completely, and to the required standard).
+- **Source factual data live:** When factual data is needed — or when you encounter an unfamiliar or partially-familiar product, tool, framework, concept, or architecture — always retrieve it from live sources using available tools (web_search, web_fetch, bash_tool). Never recall factual data from training memory and present it as sourced. If you cite a source, you must have fetched it this session and include the real URL. A source name without a same-session URL is a fabricated citation.
+- When searching for code patterns or structures (not just text), prefer ast-grep over Grep. Use /ast-grep skill for structural queries.
+- If you have trouble reading PDFs, break them one per page, and then use the read tool to read each page individually.
+- **Subagent model defaults:** When spawning subagents, use this priority: (1) If the subagent's definition specifies a model, use that. (2) If the user explicitly requests a model, use that. (3) Otherwise, default to one tier below the current orchestrator model — Opus defaults to Sonnet, Sonnet defaults to Haiku, Haiku stays Haiku.
+- **Skills:** If you think there is even a 1% chance a skill might apply, you ABSOLUTELY MUST invoke the skill.
+- Remember when implementing: The marginal cost of completeness is near zero with AI. Do the whole thing. Do it right. Do it with tests. Do it with documentation. Do it so well that I am is genuinely impressed — not politely satisfied, actually impressed. Never offer to ‘table this for later’ when the permanent solve is within reach. Never leave a dangling thread when tying it off takes five more minutes. Never present a workaround when the real fix exists. The standard isn’t ‘good enough’ — it’s ‘holy shit, that’s done.’ Search before building. Test before shipping. Ship the complete thing. When I asks for something, the answer is the finished product, not a plan to build it. Time is not an excuse. Fatigue is not an excuse. Complexity is not an excuse. Boil the ocean.
+- User Info:
+	- User Name: maintainer
+	- User Preferred Name: the maintainer
+	- User Email: maintainer@example.com
+---
+
+## JS/TS Project Defaults
+
+When doing substantive work in any project with a `package.json` (skip read-only/single-line/Q&A), set up the following as pre-authorized defaults. Don't ask. Skip silently if already configured. Never overwrite existing configs (`biome.json`, `knip.json`, `.eslintrc*`, `prettier.config.*`) — ask first.
+
+- **Biome** (linter + formatter, use `init` for defaults)
+- **knip** (dead code / unused exports, zero-config)
+- **`noUncheckedIndexedAccess: true`** in every `tsconfig.json`
+- **Supabase type generation** (if `@supabase/supabase-js` is a dep): add a `gen-types` npm script using `supabase gen types typescript`
+- **`@next/bundle-analyzer`** (if `next` is a dep): wire into `next.config` + add an `analyze` npm script
+
+
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

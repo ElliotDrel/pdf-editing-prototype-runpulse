@@ -1,5 +1,47 @@
 const BASE_URL = process.env.PULSE_BASE_URL ?? "https://api.runpulse.com";
 
+export interface PulseTextBlock {
+	content: string;
+	bounding_box: number[];
+	average_word_confidence: number;
+	page_number: number;
+}
+
+export interface PulseExtractResponse {
+	markdown?: string;
+	extraction_id?: string;
+	Text?: PulseTextBlock[];
+	Title?: PulseTextBlock[];
+	Header?: PulseTextBlock[];
+	Footer?: PulseTextBlock[];
+	[k: string]: unknown;
+}
+
+export async function extractFields(
+	pdf: Uint8Array,
+): Promise<PulseExtractResponse> {
+	const apiKey = process.env.PULSE_API_KEY;
+	if (!apiKey) throw new Error("PULSE_API_KEY not set");
+
+	const fd = new FormData();
+	fd.append(
+		"file",
+		new Blob([pdf as BlobPart], { type: "application/pdf" }),
+		"document.pdf",
+	);
+
+	const res = await fetch(`${BASE_URL}/extract`, {
+		method: "POST",
+		headers: { "x-api-key": apiKey },
+		body: fd,
+	});
+	if (!res.ok) {
+		const detail = await res.text().catch(() => "");
+		throw new Error(`pulse /extract failed: ${res.status} ${detail}`);
+	}
+	return res.json() as Promise<PulseExtractResponse>;
+}
+
 export interface FillCell {
 	text?: string;
 	bounding_box?: number[];
@@ -11,6 +53,52 @@ export interface FillCell {
 		center_coord?: number[];
 	}>;
 	[k: string]: unknown;
+}
+
+export interface ClearResult {
+	pdf: Uint8Array;
+	formFields: FillCell[];
+	formId: string;
+}
+
+export async function clearForm(pdf: Uint8Array): Promise<ClearResult> {
+	const apiKey = process.env.PULSE_API_KEY;
+	if (!apiKey) throw new Error("PULSE_API_KEY not set");
+
+	const fd = new FormData();
+	fd.append(
+		"file",
+		new Blob([pdf as BlobPart], { type: "application/pdf" }),
+		"sample.pdf",
+	);
+
+	const res = await fetch(`${BASE_URL}/form/clear`, {
+		method: "POST",
+		headers: { "x-api-key": apiKey },
+		body: fd,
+	});
+	if (!res.ok) {
+		const detail = await res.text().catch(() => "");
+		throw new Error(`pulse /form/clear failed: ${res.status} ${detail}`);
+	}
+
+	const body = (await res.json()) as {
+		pdf_url?: string;
+		form_fields?: FillCell[];
+		form_id?: string;
+	};
+	if (!body.pdf_url) throw new Error("pulse /form/clear response missing pdf_url");
+	const pdfRes = await fetch(body.pdf_url, {
+		headers: { "x-api-key": apiKey },
+	});
+	if (!pdfRes.ok)
+		throw new Error(`pulse /form/clear pdf_url fetch failed: ${pdfRes.status}`);
+
+	return {
+		pdf: new Uint8Array(await pdfRes.arrayBuffer()),
+		formFields: body.form_fields ?? [],
+		formId: body.form_id ?? "",
+	};
 }
 
 export async function fillForm(

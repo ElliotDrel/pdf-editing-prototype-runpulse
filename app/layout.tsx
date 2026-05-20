@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { MockModeBanner } from "@/components/MockModeBanner";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -42,7 +43,10 @@ export default function RootLayout({
 			lang="en"
 			className={`${instrumentSerif.variable} ${dmSans.variable} ${jetbrains.variable}`}
 		>
-			<body className="font-body bg-bg text-fg">{children}</body>
+			<body className="font-body bg-bg text-fg">
+				<MockModeBanner />
+				{children}
+			</body>
 		</html>
 	);
 }

@@ -137,9 +137,9 @@ async function main() {
   const filled = await fillPdf(cleared, formFields, instructions);
   console.log(`  filled PDF: ${filled.length} bytes`);
 
-  const outPath = resolve(__dir, '../public/test-fill-output.pdf');
+  const outPath = resolve(__dir, '../tmp/test-fill-output.pdf');
   writeFileSync(outPath, filled);
-  console.log(`✓ saved to public/test-fill-output.pdf`);
+  console.log(`✓ saved to tmp/test-fill-output.pdf`);
 }
 
 main().catch((err) => { console.error('FAILED:', err.message); process.exit(1); });

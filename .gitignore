@@ -23,6 +23,16 @@
 # misc
 .DS_Store
 *.pem
+Screenshot*.png
+*.zip
+
+# local agent/session artifacts
+STATE.md
+PRODUCT.md
+superpowers/
+docs/superpowers/
+pulse-test/test-results/
+docs/
 
 # debug
 npm-debug.log*

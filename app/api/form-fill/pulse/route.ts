@@ -21,11 +21,26 @@ type FieldSlim = {
 	type: "text" | "checkbox";
 };
 
+function pdfKeyFromBody(value: string | undefined): PdfKey {
+	return value === "referral" ? "referral" : "prior-auth";
+}
+
 export async function POST(req: NextRequest) {
 	try {
+		const ct = req.headers.get("content-type") ?? "";
+		let pdfKey: PdfKey = "prior-auth";
+
 		if (isPulseMockMode()) {
+			if (ct.includes("multipart/form-data")) {
+				const fd = await req.formData();
+				pdfKey = pdfKeyFromBody(fd.get("pdfKey") as string | null ?? undefined);
+			} else {
+				const body = (await req.json().catch(() => ({}))) as { pdfKey?: string };
+				pdfKey = pdfKeyFromBody(body.pdfKey);
+			}
+
 			await mockDelay(mockFillDelayMs());
-			const filled = mockFilledPdf();
+			const filled = mockFilledPdf(pdfKey);
 			return new NextResponse(filled as unknown as BodyInit, {
 				status: 200,
 				headers: {
@@ -37,7 +52,6 @@ export async function POST(req: NextRequest) {
 			});
 		}
 
-		const ct = req.headers.get("content-type") ?? "";
 		let sourcePdf: Uint8Array;
 		let fields: FieldSlim[];
 
@@ -65,9 +79,7 @@ export async function POST(req: NextRequest) {
 				);
 			}
 			fields = body.fields;
-			const pdfKey = (
-				body.pdfKey === "referral" ? "referral" : "prior-auth"
-			) as PdfKey;
+			pdfKey = pdfKeyFromBody(body.pdfKey);
 			const filename =
 				pdfKey === "referral" ? "sample-referral.pdf" : "sample-prior-auth.pdf";
 			const pdfPath = resolve(process.cwd(), "public", filename);

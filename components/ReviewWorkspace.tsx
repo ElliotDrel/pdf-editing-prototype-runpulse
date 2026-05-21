@@ -15,12 +15,14 @@ import {
 	setSessionClearedPdf,
 	setSessionFilledPdf,
 } from "@/lib/editable-form-session";
+import { isPublicMockMode } from "@/lib/mock-mode";
 import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
 import { SAMPLE_FIELDS } from "@/lib/sample-data";
 import type { Field, PdfKey } from "@/lib/types";
 import { AppHeader, RunpulseLink } from "./AppHeader";
 import { ApproveBar } from "./ApproveBar";
+import { HtmlExtractPlaceholder } from "./HtmlExtractPlaceholder";
 import { PdfEditPane } from "./PdfEditPane";
 import { PdfViewer } from "./PdfViewer";
 import { PrepareScreen, type PrepareStep } from "./PrepareScreen";
@@ -38,10 +40,6 @@ type LeftView = "source" | "cleared" | "filled";
 
 type PrepareState = { kind: "loading"; step: PrepareStep } | { kind: "ready" };
 
-const FALLBACK_CLEARED: Partial<Record<PdfKey, string>> = {
-	referral: "/sample-referral-cleared.pdf",
-};
-
 const ORIGINAL_PDF: Record<PdfKey, string> = {
 	"prior-auth": "/sample-prior-auth.pdf",
 	referral: "/sample-referral.pdf",
@@ -55,6 +53,7 @@ interface Props {
 }
 
 export function ReviewWorkspace({ pdfKey, phase }: Props) {
+	const isMockMode = isPublicMockMode();
 	const router = useRouter();
 	const [prepare, setPrepare] = useState<PrepareState>({
 		kind: "loading",
@@ -124,32 +123,39 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 		});
 
 		async function runPrepare() {
-			let clearedUrl = FALLBACK_CLEARED[pdfKey] ?? null;
+			if (!isMockMode) {
+				let clearedUrl: string | null = null;
 
-			try {
-				const clearRes = await fetch("/api/form-clear", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ pdfKey }),
-				});
+				try {
+					const clearRes = await fetch("/api/form-clear", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ pdfKey }),
+					});
+
+					if (cancelled) return;
+
+					if (clearRes.ok) {
+						const blob = await clearRes.blob();
+						clearedPdfBlobRef.current = blob;
+						clearedUrl = URL.createObjectURL(blob);
+						clearedPdfUrlRef.current = clearedUrl;
+					}
+				} catch {
+					// show source PDF if clear fails
+				}
 
 				if (cancelled) return;
 
-				if (clearRes.ok) {
-					const blob = await clearRes.blob();
-					clearedPdfBlobRef.current = blob;
-					clearedUrl = URL.createObjectURL(blob);
-					clearedPdfUrlRef.current = clearedUrl;
-				}
-			} catch {
-				// fall through to static cleared PDF or blank template fallback
+				setClearedPdfUrl(clearedUrl);
+				if (clearedUrl) setSessionClearedPdf(pdfKey, clearedUrl);
+				setLeftView(clearedUrl ? "cleared" : "source");
+			} else {
+				if (cancelled) return;
+				setClearedPdfUrl(null);
+				setLeftView("source");
 			}
 
-			if (cancelled) return;
-
-			setClearedPdfUrl(clearedUrl);
-			if (clearedUrl) setSessionClearedPdf(pdfKey, clearedUrl);
-			setLeftView(clearedUrl ? "cleared" : "source");
 			setPrepare({ kind: "loading", step: "extract" });
 
 			try {
@@ -161,15 +167,18 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 
 				if (cancelled) return;
 
-				const data = extractRes.ok
-					? ((await extractRes.json()) as { fields?: Field[] })
-					: { fields: fallbackFields };
+				if (isMockMode || !extractRes.ok) {
+					setFields([]);
+					setPrepare({ kind: "ready" });
+					return;
+				}
 
+				const data = (await extractRes.json()) as { fields?: Field[] };
 				setFields(data.fields?.length ? data.fields : fallbackFields);
 				setPrepare({ kind: "ready" });
 			} catch {
 				if (cancelled) return;
-				setFields(fallbackFields);
+				setFields(isMockMode ? [] : fallbackFields);
 				setPrepare({ kind: "ready" });
 			}
 		}
@@ -228,6 +237,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 				const fd = new FormData();
 				fd.append("file", clearedBlob, "cleared.pdf");
 				fd.append("fields", JSON.stringify(fieldSlims));
+				fd.append("pdfKey", pdfKey);
 				res = await fetch("/api/form-fill/pulse", { method: "POST", body: fd });
 			} else {
 				res = await fetch("/api/form-fill/pulse", {
@@ -345,10 +355,17 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 	}
 
 	const sourcePdfSrc = ORIGINAL_PDF[pdfKey];
-	const clearedPdfSrc = clearedPdfUrl;
-	const displayedPdfSrc =
-		leftView === "source" ? sourcePdfSrc : (clearedPdfSrc ?? sourcePdfSrc);
-	const showingClearedPdf = leftView === "cleared" && Boolean(clearedPdfSrc);
+	const clearedPdfSrc = isMockMode ? null : clearedPdfUrl;
+	const displayedPdfSrc = isMockMode
+		? sourcePdfSrc
+		: leftView === "source"
+			? sourcePdfSrc
+			: (clearedPdfSrc ?? sourcePdfSrc);
+	const showingClearedPdf =
+		!isMockMode && leftView === "cleared" && Boolean(clearedPdfSrc);
+	const resultFilledSrcForView =
+		resultFilledSrc && isMockMode ? sourcePdfSrc : resultFilledSrc;
+	const resultClearedSrcForView = isMockMode ? null : resultClearedSrc;
 
 	return (
 		<div className="w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
@@ -373,11 +390,11 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 				</div>
 
 				{phase === "result" ? (
-					resultFilledSrc ? (
+					resultFilledSrcForView ? (
 						<ResultWorkspace
 							sourcePdfSrc={sourcePdfSrc}
-							clearedPdfSrc={resultClearedSrc}
-							filledPdfSrc={resultFilledSrc}
+							clearedPdfSrc={resultClearedSrcForView}
+							filledPdfSrc={resultFilledSrcForView}
 							onBackToEdit={() => router.push(editableFormReviewPath(pdfKey))}
 						/>
 					) : (
@@ -418,38 +435,42 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 												? "PDF · cleared template"
 												: "PDF · source template"}
 									</div>
-									<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
-										<button
-											type="button"
-											onClick={() => setLeftView("source")}
-											className={`font-mono text-[10px] px-3 py-1 rounded-md transition-all duration-200 ${
-												leftView === "source"
-													? "bg-accent text-bg font-medium shadow-sm"
-													: "text-fg-dim hover:text-fg hover:bg-bg-elev-2"
-											}`}
-										>
-											Original
-										</button>
-										<button
-											type="button"
-											onClick={() => setLeftView("cleared")}
-											disabled={!clearedPdfSrc}
-											className={`font-mono text-[10px] px-3 py-1 rounded-md transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
-												leftView === "cleared"
-													? "bg-accent text-bg font-medium shadow-sm"
-													: "text-fg-dim hover:text-fg hover:bg-bg-elev-2"
-											}`}
-										>
-											Cleared PDF
-										</button>
-									</div>
+									{!isMockMode && (
+										<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
+											<button
+												type="button"
+												onClick={() => setLeftView("source")}
+												className={`font-mono text-[10px] px-3 py-1 rounded-md transition-all duration-200 ${
+													leftView === "source"
+														? "bg-accent text-bg font-medium shadow-sm"
+														: "text-fg-dim hover:text-fg hover:bg-bg-elev-2"
+												}`}
+											>
+												Original
+											</button>
+											<button
+												type="button"
+												onClick={() => setLeftView("cleared")}
+												disabled={!clearedPdfSrc}
+												className={`font-mono text-[10px] px-3 py-1 rounded-md transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+													leftView === "cleared"
+														? "bg-accent text-bg font-medium shadow-sm"
+														: "text-fg-dim hover:text-fg hover:bg-bg-elev-2"
+												}`}
+											>
+												Cleared PDF
+											</button>
+										</div>
+									)}
 								</div>
 								<div className="text-[11px] text-fg-dim">
-									{leftView === "source"
-										? "Original selected PDF before Pulse clears existing values."
-										: showingClearedPdf
-											? "Cleared PDF from Pulse /form/clear. Blank fields ready to fill."
-											: "Source PDF shown while Pulse /form/clear is unavailable."}
+									{isMockMode
+										? "Test mode · showing the original PDF only."
+										: leftView === "source"
+											? "Original selected PDF before Pulse clears existing values."
+											: showingClearedPdf
+												? "Cleared PDF from Pulse /form/clear. Blank fields ready to fill."
+												: "Source PDF shown while Pulse /form/clear is unavailable."}
 								</div>
 							</div>
 							<div>
@@ -457,8 +478,9 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 									Editable form · extracted by Pulse
 								</div>
 								<div className="text-[11px] text-fg-dim">
-									Field values parsed from the PDF via /extract. Edit any value
-									before submitting.
+									{isMockMode
+										? "Editable HTML form from Pulse /extract."
+										: "Field values parsed from the PDF via /extract. Edit any value before submitting."}
 								</div>
 							</div>
 						</div>
@@ -471,16 +493,20 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 
 							<div className="flex flex-col rounded-xl overflow-hidden border border-border">
 								<div className="p-5 bg-bg-elev-2">
-									<PdfEditPane
-										fields={fields}
-										activeFieldId={activeFieldId}
-										pdfKey={pdfKey}
-										onSelectField={setActiveFieldId}
-										onUpdateField={updateField}
-									/>
+									{isMockMode ? (
+										<HtmlExtractPlaceholder />
+									) : (
+										<PdfEditPane
+											fields={fields}
+											activeFieldId={activeFieldId}
+											pdfKey={pdfKey}
+											onSelectField={setActiveFieldId}
+											onUpdateField={updateField}
+										/>
+									)}
 								</div>
 								<div className="border-t border-border bg-bg-elev flex-shrink-0">
-									{hasFilledSession && (
+									{!isMockMode && hasFilledSession && (
 										<div className="px-4 pt-3 text-center">
 											<Link
 												href={editableFormResultPath(pdfKey)}
@@ -490,13 +516,19 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 											</Link>
 										</div>
 									)}
-									<ApproveBar
-										state={approve}
-										onApprove={onApprove}
-										expectedMs={FILL_EXPECTED_MS}
-										highlight={highlightApprove}
-										containerRef={approveBarRef}
-									/>
+									{isMockMode ? (
+										<div className="px-4 py-4 text-center font-mono text-[10px] text-fg-dim uppercase tracking-wider">
+											Approve disabled · /extract failed
+										</div>
+									) : (
+										<ApproveBar
+											state={approve}
+											onApprove={onApprove}
+											expectedMs={FILL_EXPECTED_MS}
+											highlight={highlightApprove}
+											containerRef={approveBarRef}
+										/>
+									)}
 								</div>
 							</div>
 						</div>

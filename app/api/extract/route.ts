@@ -1,12 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-import { readCacheJson, writeCacheJson } from "@/lib/api-cache";
 import { zonesForPdf } from "@/lib/input-zones";
 import {
 	isPulseMockMode,
 	mockDelay,
-	mockExtractPayload,
 	MOCK_HEADERS,
 } from "@/lib/pulse-mock";
 import { extractFields, type PulseTextBlock } from "@/lib/pulse";
@@ -67,21 +65,15 @@ export async function POST(req: NextRequest) {
 
 	if (isPulseMockMode()) {
 		await mockDelay();
-		return NextResponse.json(mockExtractPayload(pdfKey), {
-			headers: MOCK_HEADERS,
-		});
+		return NextResponse.json(
+			{ error: "extract unavailable in test mode" },
+			{ status: 503, headers: MOCK_HEADERS },
+		);
 	}
 
 	const filename =
 		pdfKey === "referral" ? "sample-referral.pdf" : "sample-prior-auth.pdf";
 	const fallbackFields = pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
-
-	const cached = readCacheJson<{ fields: Field[]; source: ExtractSource }>(
-		`extract-${pdfKey}.json`,
-	);
-	if (cached) {
-		return NextResponse.json({ ...cached, cache: "hit" });
-	}
 
 	try {
 		const pdfPath = resolve(process.cwd(), "public", filename);
@@ -94,7 +86,6 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({
 				fields: fallbackFields,
 				source: "fallback" as ExtractSource,
-				cache: "miss",
 			});
 		}
 
@@ -117,18 +108,15 @@ export async function POST(req: NextRequest) {
 			};
 		});
 
-		const result = { fields, source: "pulse" as ExtractSource, cache: "miss" };
-		writeCacheJson(`extract-${pdfKey}.json`, {
+		return NextResponse.json({
 			fields,
-			source: result.source,
+			source: "pulse" as ExtractSource,
 		});
-		return NextResponse.json(result);
 	} catch (err) {
 		console.error("extract route error:", err);
 		return NextResponse.json({
 			fields: fallbackFields,
 			source: "fallback" as ExtractSource,
-			cache: "miss",
 		});
 	}
 }

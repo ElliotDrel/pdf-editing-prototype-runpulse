@@ -2,13 +2,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
 import { SAMPLE_FIELDS } from "@/lib/sample-data";
-import type { ExtractSource, Field, PdfKey } from "@/lib/types";
+import type { Field, PdfKey } from "@/lib/types";
 
 const MOCK_HEADERS = { "X-Pulse-Mock": "1" } as const;
 
-const MOCK_CLEARED_FILE: Record<PdfKey, string> = {
+const MOCK_SOURCE_FILE: Record<PdfKey, string> = {
 	"prior-auth": "sample-prior-auth.pdf",
-	referral: "sample-referral-cleared.pdf",
+	referral: "sample-referral.pdf",
 };
 
 export function isPulseMockMode(): boolean {
@@ -42,25 +42,20 @@ export function readMockPdf(filename: string): Uint8Array {
 	return new Uint8Array(readFileSync(publicPath(filename)));
 }
 
+export function mockSourcePdf(pdfKey: PdfKey): Uint8Array {
+	return readMockPdf(MOCK_SOURCE_FILE[pdfKey]);
+}
+
 export function mockClearedPdf(pdfKey: PdfKey): Uint8Array {
-	return readMockPdf(MOCK_CLEARED_FILE[pdfKey]);
+	return mockSourcePdf(pdfKey);
+}
+
+export function mockFilledPdf(pdfKey: PdfKey): Uint8Array {
+	return mockSourcePdf(pdfKey);
 }
 
 export function mockExtractFields(pdfKey: PdfKey): Field[] {
 	return pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
-}
-
-export function mockExtractPayload(pdfKey: PdfKey) {
-	return {
-		fields: mockExtractFields(pdfKey),
-		source: "fallback" as ExtractSource,
-		cache: "mock" as const,
-	};
-}
-
-export function mockFilledPdf(): Uint8Array {
-	const filename = process.env.PULSE_MOCK_FILL_FILE ?? "test-fill-output.pdf";
-	return readMockPdf(filename);
 }
 
 export { MOCK_HEADERS };

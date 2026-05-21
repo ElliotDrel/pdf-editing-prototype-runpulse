@@ -5,16 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+	clearFlow,
+	getFlow,
+	hasFilledPdf,
+	hasPreparedFlow,
+	patchFlow,
+} from "@/lib/editable-form-flow-cache";
+import {
 	editableFormPreparePath,
 	editableFormResultPath,
 	editableFormReviewPath,
 } from "@/lib/editable-form-routes";
-import {
-	getSessionClearedPdf,
-	getSessionFilledPdf,
-	setSessionClearedPdf,
-	setSessionFilledPdf,
-} from "@/lib/editable-form-session";
 import { isPublicMockMode } from "@/lib/mock-mode";
 import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
@@ -67,21 +68,40 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 	const [highlightApprove, setHighlightApprove] = useState(false);
 	const [resultFilledSrc, setResultFilledSrc] = useState<string | null>(null);
 	const [resultClearedSrc, setResultClearedSrc] = useState<string | null>(null);
-	const [hasFilledSession, setHasFilledSession] = useState(false);
+	const [hasFilledResult, setHasFilledResult] = useState(false);
 	const clearedPdfBlobRef = useRef<Blob | null>(null);
-	const clearedPdfUrlRef = useRef<string | null>(null);
 	const approveBarRef = useRef<HTMLDivElement | null>(null);
 	const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
 		if (phase !== "result") return;
-		setResultFilledSrc(getSessionFilledPdf(pdfKey));
-		setResultClearedSrc(getSessionClearedPdf(pdfKey));
+
+		const cached = getFlow(pdfKey);
+		let filledUrl: string | null = null;
+		let clearedUrl: string | null = null;
+
+		if (cached?.filledBlob) {
+			filledUrl = URL.createObjectURL(cached.filledBlob);
+		} else if (cached?.prebakedFilledSrc) {
+			filledUrl = cached.prebakedFilledSrc;
+		}
+
+		if (cached?.clearedBlob) {
+			clearedUrl = URL.createObjectURL(cached.clearedBlob);
+		}
+
+		setResultFilledSrc(filledUrl);
+		setResultClearedSrc(clearedUrl);
+
+		return () => {
+			if (filledUrl?.startsWith("blob:")) URL.revokeObjectURL(filledUrl);
+			if (clearedUrl) URL.revokeObjectURL(clearedUrl);
+		};
 	}, [phase, pdfKey]);
 
 	useEffect(() => {
 		if (phase !== "review") return;
-		setHasFilledSession(Boolean(getSessionFilledPdf(pdfKey)));
+		setHasFilledResult(hasFilledPdf(pdfKey));
 	}, [phase, pdfKey]);
 
 	useEffect(() => {
@@ -100,8 +120,55 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 		if (phase === "result") return;
 
 		let cancelled = false;
+		let displayUrl: string | null = null;
 		const fallbackFields =
 			pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
+
+		function revokeDisplayUrl() {
+			if (displayUrl) {
+				URL.revokeObjectURL(displayUrl);
+				displayUrl = null;
+			}
+		}
+
+		function hydrateFromCache() {
+			const cached = getFlow(pdfKey);
+			if (!cached?.fields?.length) return false;
+
+			clearedPdfBlobRef.current = cached.clearedBlob ?? null;
+			if (cached.clearedBlob) {
+				displayUrl = URL.createObjectURL(cached.clearedBlob);
+				setClearedPdfUrl(displayUrl);
+				setLeftView("cleared");
+			} else {
+				setClearedPdfUrl(null);
+				setLeftView("source");
+			}
+			setFields(cached.fields);
+			setPrepare({ kind: "ready" });
+			return true;
+		}
+
+		queueMicrotask(() => {
+			if (cancelled) return;
+			setApprove({ kind: "idle" });
+			setActiveFieldId(null);
+			setHighlightApprove(false);
+		});
+
+		if (phase === "review" && hasPreparedFlow(pdfKey)) {
+			queueMicrotask(() => {
+				if (!cancelled) hydrateFromCache();
+			});
+			return () => {
+				cancelled = true;
+				revokeDisplayUrl();
+			};
+		}
+
+		if (phase === "prepare") {
+			clearFlow(pdfKey);
+		}
 
 		queueMicrotask(() => {
 			if (cancelled) return;
@@ -111,21 +178,13 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			setActiveFieldId(null);
 			setLeftView("cleared");
 			setHighlightApprove(false);
-		});
-
-		if (clearedPdfUrlRef.current) {
-			URL.revokeObjectURL(clearedPdfUrlRef.current);
-			clearedPdfUrlRef.current = null;
-		}
-		clearedPdfBlobRef.current = null;
-		queueMicrotask(() => {
-			if (!cancelled) setClearedPdfUrl(null);
+			revokeDisplayUrl();
+			setClearedPdfUrl(null);
+			clearedPdfBlobRef.current = null;
 		});
 
 		async function runPrepare() {
 			if (!isMockMode) {
-				let clearedUrl: string | null = null;
-
 				try {
 					const clearRes = await fetch("/api/form-clear", {
 						method: "POST",
@@ -138,8 +197,12 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 					if (clearRes.ok) {
 						const blob = await clearRes.blob();
 						clearedPdfBlobRef.current = blob;
-						clearedUrl = URL.createObjectURL(blob);
-						clearedPdfUrlRef.current = clearedUrl;
+						patchFlow(pdfKey, { clearedBlob: blob });
+						displayUrl = URL.createObjectURL(blob);
+						if (!cancelled) {
+							setClearedPdfUrl(displayUrl);
+							setLeftView("cleared");
+						}
 					}
 				} catch {
 					// show source PDF if clear fails
@@ -147,9 +210,10 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 
 				if (cancelled) return;
 
-				setClearedPdfUrl(clearedUrl);
-				if (clearedUrl) setSessionClearedPdf(pdfKey, clearedUrl);
-				setLeftView(clearedUrl ? "cleared" : "source");
+				if (!displayUrl && !cancelled) {
+					setClearedPdfUrl(null);
+					setLeftView("source");
+				}
 			} else {
 				if (cancelled) return;
 				setClearedPdfUrl(null);
@@ -173,18 +237,22 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 					return;
 				}
 
+				let nextFields: Field[];
 				if (!extractRes.ok) {
-					setFields(fallbackFields);
-					setPrepare({ kind: "ready" });
-					return;
+					nextFields = fallbackFields;
+				} else {
+					const data = (await extractRes.json()) as { fields?: Field[] };
+					nextFields = data.fields?.length ? data.fields : fallbackFields;
 				}
 
-				const data = (await extractRes.json()) as { fields?: Field[] };
-				setFields(data.fields?.length ? data.fields : fallbackFields);
+				patchFlow(pdfKey, { fields: nextFields });
+				setFields(nextFields);
 				setPrepare({ kind: "ready" });
 			} catch {
 				if (cancelled) return;
-				setFields(isMockMode ? [] : fallbackFields);
+				const nextFields = isMockMode ? [] : fallbackFields;
+				patchFlow(pdfKey, { fields: nextFields });
+				setFields(nextFields);
 				setPrepare({ kind: "ready" });
 			}
 		}
@@ -193,17 +261,18 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 
 		return () => {
 			cancelled = true;
-			if (clearedPdfUrlRef.current) {
-				URL.revokeObjectURL(clearedPdfUrlRef.current);
-				clearedPdfUrlRef.current = null;
-			}
+			revokeDisplayUrl();
 		};
 	}, [pdfKey, phase, isMockMode]);
 
 	function updateField(id: string, patch: Partial<Field>) {
-		setFields((prev) =>
-			prev.map((f) => (f.id === id ? { ...f, ...patch, reviewed: true } : f)),
-		);
+		setFields((prev) => {
+			const next = prev.map((f) =>
+				f.id === id ? { ...f, ...patch, reviewed: true } : f,
+			);
+			patchFlow(pdfKey, { fields: next });
+			return next;
+		});
 	}
 
 	function focusApproveButton() {
@@ -219,9 +288,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 		}, 1800);
 	}
 
-	function goToFilledResult(filledUrl: string) {
-		if (clearedPdfUrl) setSessionClearedPdf(pdfKey, clearedPdfUrl);
-		setSessionFilledPdf(pdfKey, filledUrl);
+	function goToFilledResult() {
 		router.push(editableFormResultPath(pdfKey));
 	}
 
@@ -234,6 +301,8 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			value: f.value,
 			type: f.type,
 		}));
+
+		patchFlow(pdfKey, { fields });
 
 		try {
 			let res: Response;
@@ -254,10 +323,17 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			}
 
 			if (!res.ok) throw new Error(`pulse ${res.status}`);
-			const pulseUrl = URL.createObjectURL(await res.blob());
-			goToFilledResult(pulseUrl);
+			patchFlow(pdfKey, {
+				filledBlob: await res.blob(),
+				prebakedFilledSrc: undefined,
+			});
+			goToFilledResult();
 		} catch {
-			goToFilledResult("/prebaked-pulse-fill.pdf");
+			patchFlow(pdfKey, {
+				prebakedFilledSrc: "/prebaked-pulse-fill.pdf",
+				filledBlob: undefined,
+			});
+			goToFilledResult();
 		}
 	}
 
@@ -292,7 +368,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			if (!resultFilledSrc) {
 				return (
 					<span className="text-fg-dim text-sm font-medium">
-						No filled PDF in this browser tab yet.{" "}
+						No filled PDF in this session yet.{" "}
 						<Link
 							href={editableFormReviewPath(pdfKey)}
 							className="text-accent underline font-bold hover:text-fg"
@@ -412,8 +488,8 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 						/>
 					) : (
 						<div className="px-8 lg:px-16 py-16 text-center text-fg-dim text-sm max-w-md mx-auto">
-							Filled PDF URLs are kept in session storage for this tab after you
-							approve. Use{" "}
+							Filled PDFs are kept in memory for this session after you approve.
+							Use{" "}
 							<Link
 								href={editableFormReviewPath(pdfKey)}
 								className="text-accent underline"
@@ -519,7 +595,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 									)}
 								</div>
 								<div className="border-t border-border bg-bg-elev flex-shrink-0">
-									{!isMockMode && hasFilledSession && (
+									{!isMockMode && hasFilledResult && (
 										<div className="px-4 pt-3 text-center">
 											<Link
 												href={editableFormResultPath(pdfKey)}

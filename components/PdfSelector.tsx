@@ -18,11 +18,11 @@ export function PdfSelector() {
 					{(["prior-auth", "referral"] as const).map((key) => {
 						const title =
 							key === "prior-auth"
-								? "Prior Authorization Form"
+								? "Laboratory Test Requisition"
 								: "Specialist Referral Request";
 						const description =
 							key === "prior-auth"
-								? "Standard medical prior authorization form with a flat single-page field layout."
+								? "Lab requisition with patient, collection, and test-order sections in a bordered layout."
 								: "Multi-section specialist referral request with nested groups and clinical fields.";
 						return (
 							<div key={key} className="flex flex-col gap-3">

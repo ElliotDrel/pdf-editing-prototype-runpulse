@@ -12,13 +12,15 @@ describe("input zones", () => {
 		const ids = [
 			"patient_name",
 			"dob",
-			"member_id",
-			"group_number",
-			"service_date",
-			"place_of_service",
-			"urgency",
-			"icd10",
+			"mrn",
 			"provider",
+			"npi",
+			"site",
+			"collection_datetime",
+			"fasting",
+			"clinical_notes",
+			"icd10",
+			"urgency",
 		];
 		for (const id of ids) {
 			expect(

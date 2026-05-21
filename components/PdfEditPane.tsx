@@ -7,6 +7,7 @@ interface Props {
 	fields: Field[];
 	activeFieldId: string | null;
 	pdfKey: PdfKey;
+	readOnly?: boolean;
 	onSelectField: (id: string) => void;
 	onUpdateField: (id: string, patch: Partial<Field>) => void;
 }
@@ -106,22 +107,39 @@ function PriorAuthForm({
 	const e = (id: string) =>
 		ep(id, byId, activeFieldId, onSelectField, onUpdateField);
 	return (
-		<div className="space-y-4">
-			<div className="grid grid-cols-[3fr_2fr] gap-x-5">
-				<FieldEditor {...e("patient_name")} />
-				<FieldEditor {...e("dob")} />
+		<div>
+			<SectionDivider label="Patient" />
+			<div className="space-y-4">
+				<div className="grid grid-cols-[3fr_2fr] gap-x-5">
+					<FieldEditor {...e("patient_name")} />
+					<FieldEditor {...e("dob")} />
+				</div>
+				<FieldEditor {...e("mrn")} />
 			</div>
-			<div className="grid grid-cols-2 gap-x-5">
-				<FieldEditor {...e("member_id")} />
-				<FieldEditor {...e("group_number")} />
+
+			<SectionDivider label="Ordering Provider" />
+			<div className="space-y-4">
+				<FieldEditor {...e("provider")} />
+				<div className="grid grid-cols-2 gap-x-5">
+					<FieldEditor {...e("npi")} />
+					<FieldEditor {...e("site")} />
+				</div>
 			</div>
-			<div className="grid grid-cols-2 gap-x-5">
+
+			<SectionDivider label="Collection" />
+			<div className="space-y-4">
+				<div className="grid grid-cols-[3fr_2fr] gap-x-5">
+					<FieldEditor {...e("collection_datetime")} />
+					<FieldEditor {...e("fasting")} />
+				</div>
+			</div>
+
+			<SectionDivider label="Clinical" />
+			<div className="space-y-4">
+				<FieldEditor {...e("clinical_notes")} />
 				<FieldEditor {...e("icd10")} />
-				<FieldEditor {...e("service_date")} />
+				<FieldEditor {...e("urgency")} />
 			</div>
-			<FieldEditor {...e("place_of_service")} />
-			<FieldEditor {...e("urgency")} />
-			<FieldEditor {...e("provider")} />
 		</div>
 	);
 }
@@ -173,6 +191,7 @@ export function PdfEditPane({
 	fields,
 	activeFieldId,
 	pdfKey,
+	readOnly = false,
 	onSelectField,
 	onUpdateField,
 }: Props) {
@@ -181,17 +200,18 @@ export function PdfEditPane({
 	const title =
 		pdfKey === "referral"
 			? "SPECIALIST REFERRAL REQUEST"
-			: "PRIOR AUTHORIZATION REQUEST";
+			: "LABORATORY TEST REQUISITION";
 
 	const subtitle =
 		pdfKey === "referral"
 			? "Form #SR-2026-0872 · BLUE CROSS PREFERRED"
-			: "PA-2026-04421 · MEDPLAN COMMERCIAL";
+			: "Req #MRD-88421 · Metro Regional Diagnostics";
 
 	return (
 		<div
 			className="bg-paper text-paper-ink rounded-lg"
 			style={{ boxShadow: "0 1px 16px rgba(0,0,0,0.18)" }}
+			aria-busy={readOnly}
 		>
 			<div className="px-6 pt-5 pb-6">
 				<div className="text-center mb-4">
@@ -207,21 +227,26 @@ export function PdfEditPane({
 				</div>
 				<div className="border-t border-paper-line/50 mb-4" />
 
-				{pdfKey === "referral" ? (
-					<ReferralForm
-						byId={byId}
-						activeFieldId={activeFieldId}
-						onSelectField={onSelectField}
-						onUpdateField={onUpdateField}
-					/>
-				) : (
-					<PriorAuthForm
-						byId={byId}
-						activeFieldId={activeFieldId}
-						onSelectField={onSelectField}
-						onUpdateField={onUpdateField}
-					/>
-				)}
+				<fieldset
+					disabled={readOnly}
+					className="border-0 p-0 m-0 min-w-0 disabled:opacity-70 disabled:cursor-not-allowed"
+				>
+					{pdfKey === "referral" ? (
+						<ReferralForm
+							byId={byId}
+							activeFieldId={activeFieldId}
+							onSelectField={onSelectField}
+							onUpdateField={onUpdateField}
+						/>
+					) : (
+						<PriorAuthForm
+							byId={byId}
+							activeFieldId={activeFieldId}
+							onSelectField={onSelectField}
+							onUpdateField={onUpdateField}
+						/>
+					)}
+				</fieldset>
 			</div>
 		</div>
 	);

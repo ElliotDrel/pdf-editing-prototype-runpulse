@@ -330,7 +330,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			goToFilledResult();
 		} catch {
 			patchFlow(pdfKey, {
-				prebakedFilledSrc: "/prebaked-pulse-fill.pdf",
+				prebakedFilledSrc: ORIGINAL_PDF[pdfKey],
 				filledBlob: undefined,
 			});
 			goToFilledResult();
@@ -589,6 +589,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 											fields={fields}
 											activeFieldId={activeFieldId}
 											pdfKey={pdfKey}
+											readOnly={approve.kind === "loading"}
 											onSelectField={setActiveFieldId}
 											onUpdateField={updateField}
 										/>

@@ -1,5 +1,4 @@
-{
-	"credits_used": 1,
+﻿{
 	"form_fields": [
 		{
 			"bounding_box": [
@@ -21,7 +20,7 @@
 			"page_number": 1,
 			"row": 1,
 			"table_idx": 0,
-			"text": "PRIOR AUTHORIZATION REQUEST MEDICAL SERVICES . COMMERCIAL PLANS Submit to: prior-auth@medplan.example · Fax: (800) 555-0199",
+			"text": "PRIOR AUTHORIZATION REQUEST MEDICAL SERVICES . COMMERCIAL PLANS Submit to: prior-auth@medplan.example Â· Fax: (800) 555-0199",
 			"type": "text"
 		},
 		{
@@ -381,12 +380,5 @@
 			"type": "text"
 		}
 	],
-	"form_id": "synthetic-form-id",
-	"page_count": 1,
-	"pdf_url": "https://example.com/synthetic-result.pdf",
-	"plan_info": {
-		"pages_used": 2,
-		"tier": "trial",
-		"total_credits_used": 2
-	}
+	"page_count": 1
 }

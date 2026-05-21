@@ -1,4 +1,4 @@
-// scripts/gen-og.mjs
+﻿// scripts/gen-og.mjs
 // Run once: node scripts/gen-og.mjs
 // Writes public/og-image.png (1200x630)
 
@@ -24,10 +24,10 @@ const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <text x="84" y="362" font-family="Georgia, 'Times New Roman', serif" font-size="50" font-style="italic" fill="#7BFF8F">Here's the layer above it.</text>
 
   <!-- Descriptor row -->
-  <text x="84" y="445" font-family="'Courier New', Courier, monospace" font-size="18" letter-spacing="3" fill="#65605A">ONE SCREEN  ·  REAL PDF IN  ·  REAL PDF OUT</text>
+  <text x="84" y="445" font-family="'Courier New', Courier, monospace" font-size="18" letter-spacing="3" fill="#65605A">ONE SCREEN  Â·  REAL PDF IN  Â·  REAL PDF OUT</text>
 
   <!-- Bottom watermark -->
-  <text x="1140" y="598" font-family="'Courier New', Courier, monospace" font-size="15" fill="#3A3632" text-anchor="end">Pulse × the maintainer · example.com</text>
+  <text x="1140" y="598" font-family="'Courier New', Courier, monospace" font-size="15" fill="#3A3632" text-anchor="end">PDF Editing Prototype</text>
 </svg>`;
 
 const buf = Buffer.from(svg, 'utf8');
@@ -37,3 +37,4 @@ await sharp(buf)
   .toFile(outPath);
 
 console.log('wrote', outPath);
+

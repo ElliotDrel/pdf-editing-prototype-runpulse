@@ -10,7 +10,11 @@ interface Props {
 
 const STEPS: Array<{ id: PrepareStep; label: string; endpoint: string }> = [
 	{ id: "clear", label: "Clearing form fields", endpoint: "POST /form/clear" },
-	{ id: "extract", label: "Extracting field values", endpoint: "POST /extract" },
+	{
+		id: "extract",
+		label: "Extracting field values",
+		endpoint: "POST /extract",
+	},
 ];
 
 const TICK_MS = 80;

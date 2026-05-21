@@ -68,7 +68,10 @@ function PdfVariantToggle({
 }) {
 	return (
 		<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner flex-shrink-0">
-			<ToggleButton active={value === "source"} onClick={() => onChange("source")}>
+			<ToggleButton
+				active={value === "source"}
+				onClick={() => onChange("source")}
+			>
 				Original
 			</ToggleButton>
 			<ToggleButton
@@ -78,7 +81,10 @@ function PdfVariantToggle({
 			>
 				Cleared PDF
 			</ToggleButton>
-			<ToggleButton active={value === "filled"} onClick={() => onChange("filled")}>
+			<ToggleButton
+				active={value === "filled"}
+				onClick={() => onChange("filled")}
+			>
 				Filled PDF
 			</ToggleButton>
 		</div>
@@ -130,7 +136,10 @@ function PdfStage({
 	);
 }
 
-function defaultSplitLeft(activePdf: PdfVariant, clearedAvailable: boolean): PdfVariant {
+function defaultSplitLeft(
+	activePdf: PdfVariant,
+	clearedAvailable: boolean,
+): PdfVariant {
 	if (activePdf !== "filled") return activePdf;
 	return clearedAvailable ? "cleared" : "source";
 }
@@ -153,10 +162,7 @@ export function ResultWorkspace({
 		setActivePdf(variant);
 	}
 
-	function selectPanelPdf(
-		side: "left" | "right",
-		variant: PdfVariant,
-	) {
+	function selectPanelPdf(side: "left" | "right", variant: PdfVariant) {
 		if (variant === "cleared" && !clearedAvailable) return;
 		if (side === "left") setLeftPanelPdf(variant);
 		else setRightPanelPdf(variant);

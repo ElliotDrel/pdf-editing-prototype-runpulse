@@ -1,8 +1,8 @@
 // components/ApproveBar.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { Ref } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ApproveState } from "./ReviewWorkspace";
 
 interface Props {
@@ -58,15 +58,15 @@ export function ApproveBar({
 				intervalRef.current = null;
 			}
 			if (state.kind === "done") {
-			queueMicrotask(() => {
-				setBarW(100);
-				setElapsedMs(estimateMaxMs);
-			});
+				queueMicrotask(() => {
+					setBarW(100);
+					setElapsedMs(estimateMaxMs);
+				});
 			} else if (state.kind === "idle" || state.kind === "error") {
-			queueMicrotask(() => {
-				setBarW(0);
-				setElapsedMs(0);
-			});
+				queueMicrotask(() => {
+					setBarW(0);
+					setElapsedMs(0);
+				});
 			}
 		}
 
@@ -133,7 +133,8 @@ export function ApproveBar({
 			<div className="px-4 py-4">
 				{state.kind === "loading" && (
 					<div className="mb-2 text-center font-mono text-[10px] uppercase tracking-widest text-fg-dim">
-						Average runtime: {ESTIMATE_MIN_MS / 1000}-{ESTIMATE_MAX_MS / 1000} seconds
+						Average runtime: {ESTIMATE_MIN_MS / 1000}-{ESTIMATE_MAX_MS / 1000}{" "}
+						seconds
 					</div>
 				)}
 				<button

@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
+import { buildInstructions, clearForm, fillForm } from "@/lib/pulse";
 import {
 	isPulseMockMode,
-	mockDelay,
-	mockFilledPdf,
-	mockFillDelayMs,
 	MOCK_HEADERS,
+	mockDelay,
+	mockFillDelayMs,
+	mockFilledPdf,
 } from "@/lib/pulse-mock";
-import { buildInstructions, clearForm, fillForm } from "@/lib/pulse";
 import type { PdfKey } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -33,9 +33,13 @@ export async function POST(req: NextRequest) {
 		if (isPulseMockMode()) {
 			if (ct.includes("multipart/form-data")) {
 				const fd = await req.formData();
-				pdfKey = pdfKeyFromBody(fd.get("pdfKey") as string | null ?? undefined);
+				pdfKey = pdfKeyFromBody(
+					(fd.get("pdfKey") as string | null) ?? undefined,
+				);
 			} else {
-				const body = (await req.json().catch(() => ({}))) as { pdfKey?: string };
+				const body = (await req.json().catch(() => ({}))) as {
+					pdfKey?: string;
+				};
 				pdfKey = pdfKeyFromBody(body.pdfKey);
 			}
 

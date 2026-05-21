@@ -2,12 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 import { zonesForPdf } from "@/lib/input-zones";
-import {
-	isPulseMockMode,
-	mockDelay,
-	MOCK_HEADERS,
-} from "@/lib/pulse-mock";
 import { extractFields, type PulseTextBlock } from "@/lib/pulse";
+import { isPulseMockMode, MOCK_HEADERS, mockDelay } from "@/lib/pulse-mock";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
 import { SAMPLE_FIELDS } from "@/lib/sample-data";
 import type { ExtractSource, Field, PdfKey } from "@/lib/types";
@@ -45,7 +41,12 @@ function findBestBlock(
 		const bb = b.bounding_box;
 		if (bb.length < 6) continue;
 		const [x0, y0, , , x4, y4] = bb;
-		if (x0 === undefined || y0 === undefined || x4 === undefined || y4 === undefined) {
+		if (
+			x0 === undefined ||
+			y0 === undefined ||
+			x4 === undefined ||
+			y4 === undefined
+		) {
 			continue;
 		}
 		const bx = (x0 + x4) / 2;
@@ -61,7 +62,9 @@ function findBestBlock(
 
 export async function POST(req: NextRequest) {
 	const body = (await req.json().catch(() => ({}))) as { pdfKey?: string };
-	const pdfKey = (body.pdfKey === "referral" ? "referral" : "prior-auth") as PdfKey;
+	const pdfKey = (
+		body.pdfKey === "referral" ? "referral" : "prior-auth"
+	) as PdfKey;
 
 	if (isPulseMockMode()) {
 		await mockDelay();
@@ -73,7 +76,8 @@ export async function POST(req: NextRequest) {
 
 	const filename =
 		pdfKey === "referral" ? "sample-referral.pdf" : "sample-prior-auth.pdf";
-	const fallbackFields = pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
+	const fallbackFields =
+		pdfKey === "referral" ? REFERRAL_FIELDS : SAMPLE_FIELDS;
 
 	try {
 		const pdfPath = resolve(process.cwd(), "public", filename);
@@ -90,22 +94,25 @@ export async function POST(req: NextRequest) {
 		}
 
 		const zones = zonesForPdf(pdfKey);
-		const fields: Field[] = zones.map((zone) => {
-			const fallback = fallbackFields.find((f) => f.id === zone.fieldId)!;
+		const fields: Field[] = zones.flatMap((zone) => {
+			const fallback = fallbackFields.find((f) => f.id === zone.fieldId);
+			if (!fallback) return [];
 			const block = findBestBlock(textBlocks, { ...zone });
 
-			if (!block) return fallback;
+			if (!block) return [fallback];
 
 			const confidence = block.average_word_confidence ?? fallback.confidence;
 			const tier = tierFromConfidence(confidence);
-			return {
-				...fallback,
-				value: block.content?.trim() || fallback.value,
-				confidence,
-				tier,
-				needsReview: tier !== "high",
-				reviewed: tier === "high",
-			};
+			return [
+				{
+					...fallback,
+					value: block.content?.trim() || fallback.value,
+					confidence,
+					tier,
+					needsReview: tier !== "high",
+					reviewed: tier === "high",
+				},
+			];
 		});
 
 		return NextResponse.json({

@@ -42,9 +42,7 @@ export default function RootLayout({
 			lang="en"
 			className={`${instrumentSerif.variable} ${dmSans.variable} ${jetbrains.variable}`}
 		>
-			<body className="font-body bg-bg text-fg">
-				{children}
-			</body>
+			<body className="font-body bg-bg text-fg">{children}</body>
 		</html>
 	);
 }

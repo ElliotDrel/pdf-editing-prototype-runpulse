@@ -167,8 +167,14 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 
 				if (cancelled) return;
 
-				if (isMockMode || !extractRes.ok) {
+				if (isMockMode) {
 					setFields([]);
+					setPrepare({ kind: "ready" });
+					return;
+				}
+
+				if (!extractRes.ok) {
+					setFields(fallbackFields);
 					setPrepare({ kind: "ready" });
 					return;
 				}
@@ -192,7 +198,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 				clearedPdfUrlRef.current = null;
 			}
 		};
-	}, [pdfKey, phase]);
+	}, [pdfKey, phase, isMockMode]);
 
 	function updateField(id: string, patch: Partial<Field>) {
 		setFields((prev) =>
@@ -321,6 +327,13 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 				<span className="text-accent text-sm font-medium">
 					1. Prepare · clearing the template and extracting fields. Sending you
 					to review when ready.
+				</span>
+			);
+		}
+		if (isMockMode) {
+			return (
+				<span className="text-fg-dim text-sm font-medium">
+					Test mode · original PDF on the left, /extract failed on the right.
 				</span>
 			);
 		}

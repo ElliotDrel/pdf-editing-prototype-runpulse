@@ -87,7 +87,8 @@ export async function clearForm(pdf: Uint8Array): Promise<ClearResult> {
 		form_fields?: FillCell[];
 		form_id?: string;
 	};
-	if (!body.pdf_url) throw new Error("pulse /form/clear response missing pdf_url");
+	if (!body.pdf_url)
+		throw new Error("pulse /form/clear response missing pdf_url");
 	const pdfRes = await fetch(body.pdf_url, {
 		headers: { "x-api-key": apiKey },
 	});

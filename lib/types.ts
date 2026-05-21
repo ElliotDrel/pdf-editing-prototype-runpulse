@@ -3,8 +3,6 @@ export type ConfidenceTier = "high" | "mid" | "low";
 export type PdfKey = "prior-auth" | "referral";
 export type ExtractSource = "pulse" | "fallback";
 
-export const PDF_TEMPLATES: PdfKey[] = ["prior-auth", "referral"];
-
 export function parseTemplateParam(
 	param: string | undefined | null,
 ): PdfKey | null {

@@ -38,11 +38,11 @@ function publicPath(filename: string): string {
 	return resolve(process.cwd(), "public", filename);
 }
 
-export function readMockPdf(filename: string): Uint8Array {
+function readMockPdf(filename: string): Uint8Array {
 	return new Uint8Array(readFileSync(publicPath(filename)));
 }
 
-export function mockSourcePdf(pdfKey: PdfKey): Uint8Array {
+function mockSourcePdf(pdfKey: PdfKey): Uint8Array {
 	return readMockPdf(MOCK_SOURCE_FILE[pdfKey]);
 }
 

@@ -220,7 +220,7 @@ export function ResultWorkspace({
 					onVariantChange={selectPdf}
 				/>
 			) : (
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+				<div className="grid grid-cols-2 gap-4 sm:gap-6 flex-1 min-h-0 min-w-0">
 					<PdfStage
 						variant={leftPanelPdf}
 						clearedAvailable={clearedAvailable}

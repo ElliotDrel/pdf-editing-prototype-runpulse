@@ -14,6 +14,22 @@ interface Props {
 	onBackToEdit: () => void;
 }
 
+const PDF_META: Record<PdfVariant, { label: string; description: string }> = {
+	source: {
+		label: "PDF · original source",
+		description: "Original selected PDF before Pulse clears existing values.",
+	},
+	cleared: {
+		label: "PDF · cleared template",
+		description:
+			"Cleared PDF from Pulse /form/clear. Blank fields ready to fill.",
+	},
+	filled: {
+		label: "PDF · filled by Pulse",
+		description: "Final document stamped with your reviewed field values.",
+	},
+};
+
 function ToggleButton({
 	active,
 	disabled,
@@ -41,22 +57,69 @@ function ToggleButton({
 	);
 }
 
-function PdfStage({
-	label,
-	description,
-	src,
+function PdfVariantToggle({
+	value,
+	clearedAvailable,
+	onChange,
 }: {
-	label: string;
-	description: string;
-	src: string;
+	value: PdfVariant;
+	clearedAvailable: boolean;
+	onChange: (variant: PdfVariant) => void;
 }) {
 	return (
+		<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner flex-shrink-0">
+			<ToggleButton active={value === "source"} onClick={() => onChange("source")}>
+				Original
+			</ToggleButton>
+			<ToggleButton
+				active={value === "cleared"}
+				disabled={!clearedAvailable}
+				onClick={() => onChange("cleared")}
+			>
+				Cleared PDF
+			</ToggleButton>
+			<ToggleButton active={value === "filled"} onClick={() => onChange("filled")}>
+				Filled PDF
+			</ToggleButton>
+		</div>
+	);
+}
+
+function PdfStage({
+	variant,
+	clearedAvailable,
+	src,
+	showToggle,
+	onVariantChange,
+}: {
+	variant: PdfVariant;
+	clearedAvailable: boolean;
+	src: string;
+	showToggle: boolean;
+	onVariantChange: (variant: PdfVariant) => void;
+}) {
+	const meta = PDF_META[variant];
+	const description =
+		variant === "cleared" && !clearedAvailable
+			? "Source PDF shown while Pulse /form/clear is unavailable."
+			: meta.description;
+
+	return (
 		<div className="flex flex-col min-h-0 flex-1">
-			<div className="mb-2 flex-shrink-0">
-				<div className="font-mono text-[10px] uppercase tracking-widest text-accent">
-					{label}
+			<div className="mb-2 flex-shrink-0 flex flex-col gap-1.5">
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+					<div className="font-mono text-[10px] uppercase tracking-widest text-accent min-w-0 shrink">
+						{meta.label}
+					</div>
+					{showToggle && (
+						<PdfVariantToggle
+							value={variant}
+							clearedAvailable={clearedAvailable}
+							onChange={onVariantChange}
+						/>
+					)}
 				</div>
-				<div className="text-[11px] text-fg-dim mt-0.5">{description}</div>
+				<div className="text-[11px] text-fg-dim">{description}</div>
 			</div>
 			<div
 				className={`rounded-xl overflow-hidden border border-border bg-bg-elev-2 ${PDF_VIEWER_FRAME_CLASS}`}
@@ -67,6 +130,11 @@ function PdfStage({
 	);
 }
 
+function defaultSplitLeft(activePdf: PdfVariant, clearedAvailable: boolean): PdfVariant {
+	if (activePdf !== "filled") return activePdf;
+	return clearedAvailable ? "cleared" : "source";
+}
+
 export function ResultWorkspace({
 	sourcePdfSrc,
 	clearedPdfSrc,
@@ -75,24 +143,31 @@ export function ResultWorkspace({
 }: Props) {
 	const [layout, setLayout] = useState<ResultLayout>("single");
 	const [activePdf, setActivePdf] = useState<PdfVariant>("filled");
+	const [leftPanelPdf, setLeftPanelPdf] = useState<PdfVariant>("cleared");
+	const [rightPanelPdf, setRightPanelPdf] = useState<PdfVariant>("filled");
 
 	const clearedAvailable = Boolean(clearedPdfSrc);
-	const leftSplitPdf: PdfVariant =
-		activePdf === "source" || activePdf === "cleared" ? activePdf : "cleared";
 
 	function selectPdf(variant: PdfVariant) {
 		if (variant === "cleared" && !clearedAvailable) return;
-		if (layout === "split" && variant === "filled") {
-			setLayout("single");
-		}
 		setActivePdf(variant);
 	}
 
+	function selectPanelPdf(
+		side: "left" | "right",
+		variant: PdfVariant,
+	) {
+		if (variant === "cleared" && !clearedAvailable) return;
+		if (side === "left") setLeftPanelPdf(variant);
+		else setRightPanelPdf(variant);
+	}
+
 	function selectLayout(next: ResultLayout) {
-		setLayout(next);
-		if (next === "split" && activePdf === "filled") {
-			setActivePdf(clearedAvailable ? "cleared" : "source");
+		if (next === "split") {
+			setLeftPanelPdf(defaultSplitLeft(activePdf, clearedAvailable));
+			setRightPanelPdf("filled");
 		}
+		setLayout(next);
 	}
 
 	const pdfSrc = (variant: PdfVariant) => {
@@ -101,50 +176,9 @@ export function ResultWorkspace({
 		return clearedPdfSrc ?? sourcePdfSrc;
 	};
 
-	const singleMeta: Record<PdfVariant, { label: string; description: string }> =
-		{
-			source: {
-				label: "PDF · original source",
-				description:
-					"Original selected PDF before Pulse clears existing values.",
-			},
-			cleared: {
-				label: "PDF · cleared template",
-				description: clearedAvailable
-					? "Cleared PDF from Pulse /form/clear. Blank fields ready to fill."
-					: "Source PDF shown while Pulse /form/clear is unavailable.",
-			},
-			filled: {
-				label: "PDF · filled by Pulse",
-				description: "Final document stamped with your reviewed field values.",
-			},
-		};
-
 	return (
 		<div className="px-8 lg:px-16 py-4 lg:py-6 flex flex-col min-h-0 flex-1">
 			<div className="flex flex-wrap items-center justify-center gap-2 mb-4 flex-shrink-0">
-				<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
-					<ToggleButton
-						active={activePdf === "source"}
-						onClick={() => selectPdf("source")}
-					>
-						Original
-					</ToggleButton>
-					<ToggleButton
-						active={activePdf === "cleared"}
-						disabled={!clearedAvailable}
-						onClick={() => selectPdf("cleared")}
-					>
-						Cleared PDF
-					</ToggleButton>
-					<ToggleButton
-						active={activePdf === "filled"}
-						onClick={() => selectPdf("filled")}
-					>
-						Filled PDF
-					</ToggleButton>
-				</div>
-
 				<div className="flex items-center gap-1 bg-bg border border-border/60 rounded-lg p-0.5 shadow-inner">
 					<ToggleButton
 						active={layout === "single"}
@@ -179,33 +213,27 @@ export function ResultWorkspace({
 
 			{layout === "single" ? (
 				<PdfStage
-					label={singleMeta[activePdf].label}
-					description={singleMeta[activePdf].description}
+					variant={activePdf}
+					clearedAvailable={clearedAvailable}
 					src={pdfSrc(activePdf)}
+					showToggle
+					onVariantChange={selectPdf}
 				/>
 			) : (
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
 					<PdfStage
-						label={
-							leftSplitPdf === "source"
-								? "PDF · original source"
-								: clearedAvailable
-									? "PDF · cleared template"
-									: "PDF · source template"
-						}
-						description={
-							leftSplitPdf === "source"
-								? "Compare against the original selected PDF."
-								: clearedAvailable
-									? "Compare against the cleared blank template."
-									: "Source PDF shown while Pulse /form/clear is unavailable."
-						}
-						src={pdfSrc(leftSplitPdf)}
+						variant={leftPanelPdf}
+						clearedAvailable={clearedAvailable}
+						src={pdfSrc(leftPanelPdf)}
+						showToggle
+						onVariantChange={(variant) => selectPanelPdf("left", variant)}
 					/>
 					<PdfStage
-						label="PDF · filled by Pulse"
-						description="Final document stamped with your reviewed field values."
-						src={filledPdfSrc}
+						variant={rightPanelPdf}
+						clearedAvailable={clearedAvailable}
+						src={pdfSrc(rightPanelPdf)}
+						showToggle
+						onVariantChange={(variant) => selectPanelPdf("right", variant)}
 					/>
 				</div>
 			)}

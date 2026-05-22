@@ -12,7 +12,7 @@ import {
 import type { PdfKey } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type FieldSlim = {
 	id: string;

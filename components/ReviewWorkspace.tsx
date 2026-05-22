@@ -329,11 +329,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			});
 			goToFilledResult();
 		} catch {
-			patchFlow(pdfKey, {
-				prebakedFilledSrc: ORIGINAL_PDF[pdfKey],
-				filledBlob: undefined,
-			});
-			goToFilledResult();
+			setApprove({ kind: "error", message: "Fill failed" });
 		}
 	}
 
@@ -452,8 +448,7 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 			: (clearedPdfSrc ?? sourcePdfSrc);
 	const showingClearedPdf =
 		!isMockMode && leftView === "cleared" && Boolean(clearedPdfSrc);
-	const resultFilledSrcForView =
-		resultFilledSrc && isMockMode ? sourcePdfSrc : resultFilledSrc;
+	const resultFilledSrcForView = isMockMode ? sourcePdfSrc : resultFilledSrc;
 	const resultClearedSrcForView = isMockMode ? null : resultClearedSrc;
 
 	return (

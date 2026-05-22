@@ -10,7 +10,7 @@ import type { ExtractSource, Field, PdfKey } from "@/lib/types";
 import { tierFromConfidence } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const PAGE_W = 612;
 const PAGE_H = 792;

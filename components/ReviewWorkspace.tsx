@@ -9,6 +9,7 @@ import {
 	getFlow,
 	hasFilledPdf,
 	hasPreparedFlow,
+	onFillStored,
 	patchFlow,
 } from "@/lib/editable-form-flow-cache";
 import {
@@ -76,24 +77,37 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 	useEffect(() => {
 		if (phase !== "result") return;
 
-		const cached = getFlow(pdfKey);
 		let filledUrl: string | null = null;
 		let clearedUrl: string | null = null;
 
-		if (cached?.filledBlob) {
-			filledUrl = URL.createObjectURL(cached.filledBlob);
-		} else if (cached?.prebakedFilledSrc) {
-			filledUrl = cached.prebakedFilledSrc;
+		function readFromCache() {
+			const cached = getFlow(pdfKey);
+
+			const nextFilledUrl = cached?.filledBlob
+				? URL.createObjectURL(cached.filledBlob)
+				: (cached?.prebakedFilledSrc ?? null);
+			const nextClearedUrl = cached?.clearedBlob
+				? URL.createObjectURL(cached.clearedBlob)
+				: null;
+
+			if (filledUrl?.startsWith("blob:")) URL.revokeObjectURL(filledUrl);
+			if (clearedUrl) URL.revokeObjectURL(clearedUrl);
+			filledUrl = nextFilledUrl;
+			clearedUrl = nextClearedUrl;
+
+			setResultFilledSrc(filledUrl);
+			setResultClearedSrc(clearedUrl);
 		}
 
-		if (cached?.clearedBlob) {
-			clearedUrl = URL.createObjectURL(cached.clearedBlob);
-		}
+		readFromCache();
 
-		setResultFilledSrc(filledUrl);
-		setResultClearedSrc(clearedUrl);
+		// Re-read if a fill lands while this page is already mounted
+		const unsubscribe = onFillStored((key) => {
+			if (key === pdfKey) readFromCache();
+		});
 
 		return () => {
+			unsubscribe();
 			if (filledUrl?.startsWith("blob:")) URL.revokeObjectURL(filledUrl);
 			if (clearedUrl) URL.revokeObjectURL(clearedUrl);
 		};

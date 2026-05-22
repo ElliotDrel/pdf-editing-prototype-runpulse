@@ -9,6 +9,12 @@ export type FlowArtifacts = {
 };
 
 const cache = new Map<PdfKey, FlowArtifacts>();
+const fillListeners = new Set<(pdfKey: PdfKey) => void>();
+
+export function onFillStored(fn: (pdfKey: PdfKey) => void): () => void {
+	fillListeners.add(fn);
+	return () => fillListeners.delete(fn);
+}
 
 export function clearFlow(pdfKey: PdfKey): void {
 	cache.delete(pdfKey);
@@ -20,6 +26,9 @@ export function getFlow(pdfKey: PdfKey): FlowArtifacts | undefined {
 
 export function patchFlow(pdfKey: PdfKey, patch: Partial<FlowArtifacts>): void {
 	cache.set(pdfKey, { ...cache.get(pdfKey), ...patch });
+	if (patch.filledBlob !== undefined) {
+		fillListeners.forEach((fn) => fn(pdfKey));
+	}
 }
 
 export function hasFilledPdf(pdfKey: PdfKey): boolean {

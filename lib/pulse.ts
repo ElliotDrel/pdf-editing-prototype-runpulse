@@ -102,6 +102,42 @@ export async function clearForm(pdf: Uint8Array): Promise<ClearResult> {
 	};
 }
 
+export async function submitFillAsync(
+	pdf: Uint8Array,
+	instructions: string,
+	formFields: FillCell[],
+): Promise<string> {
+	const apiKey = process.env.PULSE_API_KEY;
+	if (!apiKey) throw new Error("PULSE_API_KEY not set");
+
+	const fd = new FormData();
+	fd.append(
+		"file",
+		new Blob([pdf as BlobPart], { type: "application/pdf" }),
+		"sample.pdf",
+	);
+	fd.append("instructions", instructions);
+	fd.append("async", "true");
+	if (formFields.length > 0) {
+		fd.append("form_fields", JSON.stringify(formFields));
+	}
+
+	const res = await fetch(`${BASE_URL}/form/fill`, {
+		method: "POST",
+		headers: { "x-api-key": apiKey },
+		body: fd,
+	});
+
+	if (res.status !== 202) {
+		const detail = await res.text().catch(() => "");
+		throw new Error(`pulse /form/fill async failed: ${res.status} ${detail}`);
+	}
+
+	const data = (await res.json()) as { job_id?: string };
+	if (!data.job_id) throw new Error("pulse async response missing job_id");
+	return data.job_id;
+}
+
 export async function fillForm(
 	pdf: Uint8Array,
 	instructions: string,

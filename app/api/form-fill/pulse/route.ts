@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-import { buildInstructions, clearForm, fillForm } from "@/lib/pulse";
+import { buildInstructions, clearForm, submitFillAsync } from "@/lib/pulse";
 import {
 	isPulseMockMode,
 	MOCK_HEADERS,
@@ -12,7 +12,7 @@ import {
 import type { PdfKey } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 type FieldSlim = {
 	id: string;
@@ -93,16 +93,9 @@ export async function POST(req: NextRequest) {
 		}
 
 		const instructions = buildInstructions(fields);
-		const filled = await fillForm(sourcePdf, instructions, []);
+		const jobId = await submitFillAsync(sourcePdf, instructions, []);
 
-		return new NextResponse(filled as unknown as BodyInit, {
-			status: 200,
-			headers: {
-				"Content-Type": "application/pdf",
-				"Content-Disposition": 'attachment; filename="pulse_render.pdf"',
-				"Cache-Control": "no-store",
-			},
-		});
+		return NextResponse.json({ jobId }, { status: 202 });
 	} catch (err) {
 		console.error("pulse route error:", err);
 		return NextResponse.json({ error: "pulse fill failed" }, { status: 500 });

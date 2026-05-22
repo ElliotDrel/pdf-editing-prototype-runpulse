@@ -336,7 +336,37 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 				});
 			}
 
+			if (res.status === 202) {
+				const { jobId } = (await res.json()) as { jobId: string };
+				let delay = 3_000;
+				while (true) {
+					await new Promise<void>((r) => setTimeout(r, delay));
+					const statusRes = await fetch(
+						`/api/form-fill/status?jobId=${encodeURIComponent(jobId)}`,
+					);
+					const ctype = statusRes.headers.get("Content-Type") ?? "";
+					if (ctype.includes("application/pdf")) {
+						patchFlow(pdfKey, {
+							filledBlob: await statusRes.blob(),
+							prebakedFilledSrc: undefined,
+						});
+						goToFilledResult();
+						return;
+					}
+					const data = (await statusRes.json()) as {
+						status?: string;
+						error?: string;
+					};
+					if (!statusRes.ok || data.error) {
+						throw new Error(data.error ?? "fill job failed");
+					}
+					delay = Math.min(Math.round(delay * 1.5), 10_000);
+				}
+			}
+
 			if (!res.ok) throw new Error(`pulse ${res.status}`);
+
+			// Sync path: mock mode returns 200 with PDF binary directly
 			patchFlow(pdfKey, {
 				filledBlob: await res.blob(),
 				prebakedFilledSrc: undefined,

@@ -27,7 +27,7 @@ export function getFlow(pdfKey: PdfKey): FlowArtifacts | undefined {
 export function patchFlow(pdfKey: PdfKey, patch: Partial<FlowArtifacts>): void {
 	cache.set(pdfKey, { ...cache.get(pdfKey), ...patch });
 	if (patch.filledBlob !== undefined) {
-		fillListeners.forEach((fn) => fn(pdfKey));
+		for (const fn of fillListeners) fn(pdfKey);
 	}
 }
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
+import {
+	PDF_RESULT_SINGLE_FRAME_CLASS,
+	PDF_VIEWER_FRAME_CLASS,
+} from "@/lib/pdf-viewer-layout";
 import { PdfViewer } from "./PdfViewer";
 
 type PdfVariant = "source" | "cleared" | "filled";
@@ -96,12 +99,14 @@ function PdfStage({
 	clearedAvailable,
 	src,
 	showToggle,
+	frameClass = PDF_VIEWER_FRAME_CLASS,
 	onVariantChange,
 }: {
 	variant: PdfVariant;
 	clearedAvailable: boolean;
 	src: string;
 	showToggle: boolean;
+	frameClass?: string;
 	onVariantChange: (variant: PdfVariant) => void;
 }) {
 	const meta = PDF_META[variant];
@@ -128,7 +133,7 @@ function PdfStage({
 				<div className="text-[11px] text-fg-dim">{description}</div>
 			</div>
 			<div
-				className={`rounded-xl overflow-hidden border border-border bg-bg-elev-2 ${PDF_VIEWER_FRAME_CLASS}`}
+				className={`rounded-xl overflow-hidden border border-border bg-bg-elev-2 ${frameClass}`}
 			>
 				<PdfViewer src={src} />
 			</div>
@@ -218,13 +223,16 @@ export function ResultWorkspace({
 			</div>
 
 			{layout === "single" ? (
-				<PdfStage
-					variant={activePdf}
-					clearedAvailable={clearedAvailable}
-					src={pdfSrc(activePdf)}
-					showToggle
-					onVariantChange={selectPdf}
-				/>
+				<div className="max-w-3xl mx-auto w-full flex flex-col flex-1 min-h-0">
+					<PdfStage
+						variant={activePdf}
+						clearedAvailable={clearedAvailable}
+						src={pdfSrc(activePdf)}
+						showToggle
+						frameClass={PDF_RESULT_SINGLE_FRAME_CLASS}
+						onVariantChange={selectPdf}
+					/>
+				</div>
 			) : (
 				<div className="grid grid-cols-2 gap-4 sm:gap-6 flex-1 min-h-0 min-w-0">
 					<PdfStage

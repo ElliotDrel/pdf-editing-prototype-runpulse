@@ -18,7 +18,10 @@ import {
 	editableFormReviewPath,
 } from "@/lib/editable-form-routes";
 import { isPublicMockMode } from "@/lib/mock-mode";
-import { PDF_VIEWER_FRAME_CLASS } from "@/lib/pdf-viewer-layout";
+import {
+	PDF_PANEL_HEIGHT_CLASS,
+	PDF_VIEWER_FRAME_CLASS,
+} from "@/lib/pdf-viewer-layout";
 import { REFERRAL_FIELDS } from "@/lib/referral-data";
 import { SAMPLE_FIELDS } from "@/lib/sample-data";
 import type { Field, PdfKey } from "@/lib/types";
@@ -619,8 +622,10 @@ export function ReviewWorkspace({ pdfKey, phase }: Props) {
 								</div>
 							</div>
 
-							<div className="flex flex-col rounded-xl overflow-hidden border border-border">
-								<div className="p-5 bg-bg-elev-2">
+							<div
+								className={`flex flex-col rounded-xl overflow-hidden border border-border ${PDF_PANEL_HEIGHT_CLASS}`}
+							>
+								<div className="p-5 bg-bg-elev-2 flex-1 min-h-0 overflow-y-auto">
 									{isMockMode ? (
 										<HtmlExtractPlaceholder />
 									) : (
